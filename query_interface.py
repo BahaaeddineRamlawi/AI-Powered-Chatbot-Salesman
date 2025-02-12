@@ -41,7 +41,19 @@ class WeaviateHybridSearch:
             description = obj.properties.get("description", "No Description")
             description = description.replace("\n", "<br>")
             categories = obj.properties.get("categories", "No Category")
-            results.append(f"## <u>Item {index}</u>\n**{title}**\n{description}\n\n**Categories:** {categories}\n")
+            image_url = obj.properties.get("image", "none")
+
+            result_html = f"""
+            <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
+                <h1>Item {index}</h1>
+                <img src="{image_url}" alt="Product Image" style="width:200px; height:auto; border-radius:10px;">
+                <h2>{title}</h2>
+                <p>{description}</p>
+                <p><strong>Categories:</strong> {categories}</p>
+            </div>
+            """
+
+            results.append(result_html)
 
         logging.info(f"Found {len(results)} results")
         return results if results else ["No matching items found."]
