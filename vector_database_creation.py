@@ -214,8 +214,7 @@ if __name__ == "__main__":
     try:
         # Load CSV
         try:
-            df = pd.read_csv("products.csv", encoding="utf-8", errors="replace")
-            logging.info("File successfully read with UTF-8 encoding.")
+            df = pd.read_csv("products.csv")
         except UnicodeDecodeError as e:
             logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")
             raise
@@ -227,7 +226,7 @@ if __name__ == "__main__":
         # Connect to Weaviate and manage data
         weaviate_handler = WeaviateHandler()
         df = weaviate_handler.clean_data(df)
-        # weaviate_handler.create_schema()
+        weaviate_handler.create_schema()
         weaviate_handler.insert_data(df)
 
     except Exception as main_error:
