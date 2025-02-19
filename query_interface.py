@@ -4,6 +4,7 @@ import gradio as gr
 from sentence_transformers import SentenceTransformer
 from datetime import datetime
 from weaviate.classes.query import Filter
+from weaviate.classes.query import Filter
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -12,6 +13,7 @@ logging.basicConfig(
     filemode='a'
 )
 
+class WeaviateSearch:
 class WeaviateSearch:
     def __init__(self, collection_name="Product", model_name="all-MiniLM-L6-v2"):
         """Initialize Weaviate connection, model, and collection."""
@@ -23,6 +25,8 @@ class WeaviateSearch:
 
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
+    def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
+        """Perform hybrid search using keyword & vector similarity."""
         query_embedding = self.model.encode(query).tolist()
         response = self.collection.query.hybrid(
             query=query,
@@ -31,7 +35,22 @@ class WeaviateSearch:
             limit=limit,
             target_vector="info_vector",
             filters=filters
+            target_vector="info_vector",
+            filters=filters
         )
+        return self._format_results(response)
+    
+
+    def keyword_search(self, query, limit=3, filters=None):
+        """Perform BM25 keyword search."""
+        response = self.collection.query.bm25(
+            query=query, limit=limit, filters=filters
+        )
+        return self._format_results(response)
+    
+
+    def _format_results(self, response):
+        """Format search results into a structured response."""
         return self._format_results(response)
     
 
@@ -54,6 +73,9 @@ class WeaviateSearch:
             price = obj.properties.get("price", "N/A")
             rating = obj.properties.get("rating", "N/A")
             
+            price = obj.properties.get("price", "N/A")
+            rating = obj.properties.get("rating", "N/A")
+            
             result_html = f"""
             <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
                 <h1>Item {index}</h1>
@@ -62,11 +84,14 @@ class WeaviateSearch:
                 <p><strong>Categories:</strong> {categories}</p>
                 <p><strong>Price:</strong> ${price}</p>
                 <p><strong>Rating:</strong> {rating} ⭐</p>
+                <p><strong>Price:</strong> ${price}</p>
+                <p><strong>Rating:</strong> {rating} ⭐</p>
             </div>
             """
             # <p>{description}</p>
             
             results.append(result_html)
+        
         
         logging.info(f"Found {len(results)} results")
         return results if results else ["No matching items found."]
@@ -76,6 +101,7 @@ class WeaviateSearch:
         self.client.close()
         logging.info("Weaviate connection closed.")
 
+search_engine = WeaviateSearch()
 search_engine = WeaviateSearch()
 
 def gradio_search(query, price_filter, rating_filter, search_type):
