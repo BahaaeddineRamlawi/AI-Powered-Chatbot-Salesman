@@ -39,7 +39,6 @@ class ProductEmbedder:
             df["combined_text"] = df.apply(lambda x: f"title: {x['title']} description: {x['description']} categories: {x['categories']}", axis=1)
             df["info_vector"] = df["combined_text"].apply(lambda x: self.model.encode(x))
 
-
             logging.info("Embeddings generated and validated successfully.")
             return df
         except Exception as e:
@@ -119,51 +118,15 @@ class WeaviateHandler:
                         vector_index_config=Configure.VectorIndex.hnsw()
                     ),
                 ],
+                inverted_index_config=Configure.inverted_index(
+                    index_null_state=True
+                )
             )
 
             logging.info("Schema created successfully.")
         except Exception as e:
             logging.error(f"Error creating schema: {e}")
             raise
-
-
-    def clean_data(self, df):
-        """Clean the product data to ensure no NaN, inf, or invalid values."""
-        for _, row in df.iterrows():
-            try:
-                if isinstance(row["price"], str):
-                    cleaned_price = float(row["price"].replace(' $', '').replace('$', '').replace(',', '').strip())
-                else:
-                    cleaned_price = float(row["price"])
-                
-                # Ensure no out-of-range or invalid float values (NaN, inf)
-                if cleaned_price == float('inf') or cleaned_price == float('-inf') or np.isnan(cleaned_price):
-                    cleaned_price = 0.0
-            except ValueError:
-                cleaned_price = 0.0
-
-            logging.info(f"Done Cleaning price")
-            
-            try:
-                cleaned_rating = float(str(row["rating"]).strip().replace('"', '').replace("'", ""))
-                
-                # Ensure no out-of-range or invalid float values
-                if cleaned_rating == float('inf') or cleaned_rating == float('-inf') or cleaned_rating != cleaned_rating:  # NaN check
-                    cleaned_rating = 0.0
-            except ValueError:
-                cleaned_rating = 0.0
-
-            logging.info(f"Done Cleaning rating")
-
-            if (np.isnan(cleaned_price) or np.isinf(cleaned_price) or np.isnan(cleaned_rating) or np.isinf(cleaned_rating)):
-                logging.error(f"Invalid price or rating for product {row['id']}. Skipping this entry.")
-                continue
-
-            df.at[_, "price"] = cleaned_price
-            df.at[_, "rating"] = cleaned_rating
-
-        logging.info("Data cleaned successfully.")
-        return df
 
 
     def insert_data(self, df):
@@ -173,15 +136,13 @@ class WeaviateHandler:
             logging.info("Inserting data into Weaviate...")
 
             for _, row in df.iterrows():
-                # Construct the product object
                 product = {
                     "product_id": str(row["id"]),
-                    "title": row["title"],
-                    "price": row["price"],
+                    "price": None if pd.isna(row["price"]) else row["price"],
                     "categories": row["categories"],
-                    "description": row["description"],
-                    "rating": row["rating"],
-                    "weight": row["weight"],
+                    # "description": row["description"],
+                    "rating": None if pd.isna(row["rating"]) else row["rating"],
+                    "weight": None if pd.isna(row["weight"]) else row["weight"],
                     "image": row["image"],
                     "stock_status": row["stock_status"]
                 }
@@ -199,7 +160,6 @@ class WeaviateHandler:
             logging.error(f"Error inserting data: {e}")
             raise
 
-
     def close_connection(self):
         """Close Weaviate connection properly."""
         try:
@@ -215,6 +175,7 @@ if __name__ == "__main__":
         # Load CSV
         try:
             df = pd.read_csv("products.csv")
+            logging.info("File successfully read")
         except UnicodeDecodeError as e:
             logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")
             raise
@@ -225,7 +186,6 @@ if __name__ == "__main__":
 
         # Connect to Weaviate and manage data
         weaviate_handler = WeaviateHandler()
-        df = weaviate_handler.clean_data(df)
         weaviate_handler.create_schema()
         weaviate_handler.insert_data(df)
 
