@@ -35,12 +35,6 @@ class WeaviateSearch:
         cursor.execute(query, (str(product_id),))  # Convert product_id to string
 
         results = cursor.fetchall()
-        
-        print("111111111111")
-        print(product_id)
-        print(results)
-        print("111111111111")
-        
 
         conn.close()
         return results
@@ -94,7 +88,6 @@ class WeaviateSearch:
                 <p><strong>Categories:</strong> {categories}</p>
                 <p><strong>Price:</strong> ${price}</p>
                 <p><strong>Rating:</strong> {rating} ⭐</p>
-                <p><strong>Product id:</strong> {product_id}</p>
                 {offers_html}
             </div>
             """

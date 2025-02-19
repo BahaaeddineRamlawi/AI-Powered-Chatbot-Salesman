@@ -1,57 +1,82 @@
 import sqlite3
 import pandas as pd
 import json
+import logging
+from datetime import datetime
+import os
 
-# Load CSV data
-csv_file = "offers.csv"  # Update with the actual filename
-df = pd.read_csv(csv_file)
+os.makedirs("./logs", exist_ok=True)
 
-# Connect to SQLite database (creates a new one if not exists)
-conn = sqlite3.connect("offers_database.db")
-cursor = conn.cursor()
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s', 
+    filename=f"./logs/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
+    filemode='a'
+)
 
-# Create table if not exists
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS offers (
-        id INTEGER PRIMARY KEY,
-        title TEXT,
-        price REAL,
-        link TEXT,
-        categories TEXT,
-        description TEXT,
-        rating REAL,
-        weight TEXT,
-        image TEXT,
-        stock_status TEXT,
-        product_list TEXT
-    )
-""")
+class OffersDatabase:
+    def __init__(self, db_name="offers_database.db"):
+        """Initialize the database connection."""
+        self.db_name = db_name
+        self.conn = None
 
-# Convert product_list to JSON format before inserting
-df["product_list"] = df["product_list"].apply(lambda x: json.dumps(x.strip("[]").split(",")))
+    def connect(self):
+        """Establish a connection to the SQLite database."""
+        try:
+            self.conn = sqlite3.connect(self.db_name)
+            logging.info("Connected to the SQLite database.")
+        except sqlite3.Error as e:
+            logging.error(f"Error connecting to database: {e}")
 
+    def create_table(self):
+        """Create the offers table if it does not exist."""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS offers (
+                    id INTEGER PRIMARY KEY,
+                    title TEXT,
+                    price REAL,
+                    link TEXT,
+                    categories TEXT,
+                    description TEXT,
+                    rating REAL,
+                    weight TEXT,
+                    image TEXT,
+                    stock_status TEXT,
+                    product_list TEXT
+                )
+            """)
+            self.conn.commit()
+            logging.info("Table created successfully or already exists.")
+        except sqlite3.Error as e:
+            logging.error(f"Error creating table: {e}")
 
-# Insert data into the table
-df.to_sql("offers", conn, if_exists="replace", index=False)
+    def insert_data(self, csv_file):
+        """Insert data from a CSV file into the database."""
+        try:
+            df = pd.read_csv(csv_file)
+            
+            # Convert product_list column to JSON format
+            if "product_list" in df.columns:
+                df["product_list"] = df["product_list"].apply(lambda x: json.dumps(x.strip("[]").split(",")))
 
-# Commit and close connection
-conn.commit()
+            df.to_sql("offers", self.conn, if_exists="replace", index=False)
+            self.conn.commit()
+            logging.info("Data inserted successfully into the database.")
+        except Exception as e:
+            logging.error(f"Error inserting data: {e}")
 
+    def close(self):
+        """Close the database connection."""
+        if self.conn:
+            self.conn.close()
+            logging.info("Database connection closed.")
 
-
-cursor = conn.cursor()
-
-# Query to select all rows from the "offers" table
-cursor.execute("SELECT * FROM offers")
-
-# Fetch all results
-rows = cursor.fetchall()
-
-# Print the results
-for row in rows:
-    print(row)
-
-
-conn.close()
-
-# print("Data inserted successfully into SQLite database.")
+# Usage
+if __name__ == "__main__":
+    db = OffersDatabase()
+    db.connect()
+    db.create_table()
+    db.insert_data("offers.csv")  # Update with the actual filename
+    db.close()
