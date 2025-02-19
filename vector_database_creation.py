@@ -6,22 +6,27 @@ import weaviate.classes as wvc
 import numpy as np
 import logging
 from datetime import datetime
+import yaml
 import os
 
-os.makedirs("./logs", exist_ok=True)
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+os.makedirs(config['logging']['logs_dir'], exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s', 
-    filename=f"./logs/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
+    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
     filemode='a'
 )
+
 
 
 class ProductEmbedder:
     """Handles embedding generation for product data."""
     
-    def __init__(self, model_name="all-MiniLM-L6-v2"):
+    def __init__(self, model_name=config['embedding']['model_name']):
         """Initialize the sentence transformer model."""
         try:
             self.model = SentenceTransformer(model_name)
@@ -62,9 +67,9 @@ class WeaviateHandler:
     def create_schema(self):
         """Define and create the schema in Weaviate (v4 syntax)."""
         try:
-            self.client.collections.delete(name="Product")
+            self.client.collections.delete(name=config['weaviate']['collection_name'])
             self.client.collections.create(
-                name="Product",
+                name=config['weaviate']['collection_name'],
                 properties=[
                     wvc.config.Property(
                         name="product_id",
@@ -132,12 +137,13 @@ class WeaviateHandler:
     def insert_data(self, df):
         """Insert product data into Weaviate."""
         try:
-            collection = self.client.collections.get("Product")  # Get the Product collection
+            collection = self.client.collections.get(config['weaviate']['collection_name'])
             logging.info("Inserting data into Weaviate...")
 
             for _, row in df.iterrows():
                 product = {
                     "product_id": str(row["id"]),
+                    "title": str(row["title"]),
                     "price": None if pd.isna(row["price"]) else row["price"],
                     "categories": row["categories"],
                     # "description": row["description"],
@@ -174,7 +180,7 @@ if __name__ == "__main__":
     try:
         # Load CSV
         try:
-            df = pd.read_csv("products.csv")
+            df = pd.read_csv(config['input_file']['cleaned_products_data_path'])
             logging.info("File successfully read")
         except UnicodeDecodeError as e:
             logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")

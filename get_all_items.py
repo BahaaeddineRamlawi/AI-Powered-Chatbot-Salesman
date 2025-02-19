@@ -1,18 +1,23 @@
 import weaviate
 import logging
 from datetime import datetime
+import yaml
 import os
 
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+os.makedirs(config['logging']['logs_dir'], exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s', 
+    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
+    filemode='a'
+)
+
 class WeaviateClient:
-    
     def __init__(self, collection_name):
-        os.makedirs("./logs", exist_ok=True)
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            filename=f"./logs/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
-            filemode='a'
-        )
         
         self.client = weaviate.connect_to_local()
         self.collection_name = collection_name
@@ -49,7 +54,6 @@ class WeaviateClient:
 
 
 if __name__ == "__main__":
-
-    client = WeaviateClient(collection_name="Product")
+    client = WeaviateClient(config['weaviate']['collection_name'])
     all_products = client.fetch_all_products()
     client.log_results(all_products)

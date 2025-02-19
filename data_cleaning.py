@@ -3,27 +3,28 @@ import pandas as pd
 import re
 import logging
 from datetime import datetime
-from dotenv import load_dotenv
+import yaml
 from mistralai import Mistral
 import time
 import numpy as np
 
-load_dotenv()
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
 
-os.makedirs("./logs", exist_ok=True)
+os.makedirs(config['logging']['logs_dir'], exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s', 
-    filename=f"./logs/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
+    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
     filemode='a'
 )
 
 class ProductDataCleaner:
     def __init__(self, file_path):
         self.file_path = file_path
-        self.client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
-        self.model = "mistral-large-latest"
+        self.client = Mistral(api_key=config['mistral']['api_key'])
+        self.model = config['mistral']['model']
 
     def weight_estimation(self, description):
         """Estimate weight from the description using Mistral API if the weight is missing or invalid."""
@@ -101,7 +102,7 @@ class ProductDataCleaner:
 
             df = self.clean_data(df)
 
-            cleaned_file_path = "cleaned_" + self.file_path
+            cleaned_file_path = config['output_file']['cleaned_products_data_path']
             df.to_csv(cleaned_file_path, index=False, encoding="utf-8", na_rep="NaN")
 
             logging.info(f"Cleaned data saved to {cleaned_file_path}")
@@ -110,5 +111,5 @@ class ProductDataCleaner:
             logging.error(f"Error processing file: {e}")
             return None
 
-cleaner = ProductDataCleaner("products copy.csv")
+cleaner = ProductDataCleaner(config['input_file']['products_data_path'])
 cleaned_file = cleaner.process_file()

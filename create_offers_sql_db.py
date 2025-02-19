@@ -3,19 +3,24 @@ import pandas as pd
 import json
 import logging
 from datetime import datetime
+import yaml
 import os
 
-os.makedirs("./logs", exist_ok=True)
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+os.makedirs(config['logging']['logs_dir'], exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s', 
-    filename=f"./logs/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
+    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
     filemode='a'
 )
 
+
 class OffersDatabase:
-    def __init__(self, db_name="offers_database.db"):
+    def __init__(self, db_name=config['database']['name']):
         """Initialize the database connection."""
         self.db_name = db_name
         self.conn = None
@@ -52,12 +57,11 @@ class OffersDatabase:
         except sqlite3.Error as e:
             logging.error(f"Error creating table: {e}")
 
-    def insert_data(self, csv_file):
+    def insert_data(self, csv_file=config['input_file']['offers_data_path']):
         """Insert data from a CSV file into the database."""
         try:
             df = pd.read_csv(csv_file)
             
-            # Convert product_list column to JSON format
             if "product_list" in df.columns:
                 df["product_list"] = df["product_list"].apply(lambda x: json.dumps(x.strip("[]").split(",")))
 
@@ -73,10 +77,10 @@ class OffersDatabase:
             self.conn.close()
             logging.info("Database connection closed.")
 
-# Usage
+
 if __name__ == "__main__":
     db = OffersDatabase()
     db.connect()
     db.create_table()
-    db.insert_data("offers.csv")  # Update with the actual filename
+    db.insert_data()
     db.close()
