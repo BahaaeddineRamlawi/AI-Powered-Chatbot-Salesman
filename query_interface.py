@@ -14,7 +14,6 @@ logging.basicConfig(
 )
 
 class WeaviateSearch:
-class WeaviateSearch:
     def __init__(self, collection_name="Product", model_name="all-MiniLM-L6-v2"):
         """Initialize Weaviate connection, model, and collection."""
         self.client = weaviate.connect_to_local()
@@ -25,16 +24,12 @@ class WeaviateSearch:
 
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
-    def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
-        """Perform hybrid search using keyword & vector similarity."""
         query_embedding = self.model.encode(query).tolist()
         response = self.collection.query.hybrid(
             query=query,
             vector=query_embedding,
             alpha=alpha,
             limit=limit,
-            target_vector="info_vector",
-            filters=filters
             target_vector="info_vector",
             filters=filters
         )
