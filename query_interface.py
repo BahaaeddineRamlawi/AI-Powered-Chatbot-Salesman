@@ -4,7 +4,8 @@ import gradio as gr
 from sentence_transformers import SentenceTransformer
 from datetime import datetime
 from weaviate.classes.query import Filter
-from weaviate.classes.query import Filter
+import sqlite3
+
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -14,13 +15,29 @@ logging.basicConfig(
 )
 
 class WeaviateSearch:
-    def __init__(self, collection_name="Product", model_name="all-MiniLM-L6-v2"):
-        """Initialize Weaviate connection, model, and collection."""
+    def __init__(self, collection_name="Product", model_name="all-MiniLM-L6-v2", db_path="offers_database.db"):
+        """Initialize Weaviate connection, model, and SQLite database."""
         self.client = weaviate.connect_to_local()
         self.collection = self.client.collections.get(collection_name)
         self.model = SentenceTransformer(model_name)
+        self.db_path = db_path
         logging.info(f"Connected to Weaviate and loaded model: {model_name}")
 
+    def find_offers_by_product(self, product_id):
+        """Find offers that contain a given product ID."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT * FROM offers
+            WHERE ? IN (SELECT value FROM json_each(product_list))
+        """
+        cursor.execute(query, (str(product_id),))  # Convert product_id to string
+
+        results = cursor.fetchall()
+
+        conn.close()
+        return results
 
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
@@ -34,7 +51,6 @@ class WeaviateSearch:
             filters=filters
         )
         return self._format_results(response)
-    
 
     def keyword_search(self, query, limit=3, filters=None):
         """Perform BM25 keyword search."""
@@ -42,25 +58,12 @@ class WeaviateSearch:
             query=query, limit=limit, filters=filters
         )
         return self._format_results(response)
-    
-
-    def _format_results(self, response):
-        """Format search results into a structured response."""
-        return self._format_results(response)
-    
-
-    def keyword_search(self, query, limit=3, filters=None):
-        """Perform BM25 keyword search."""
-        response = self.collection.query.bm25(
-            query=query, limit=limit, filters=filters
-        )
-        return self._format_results(response)
-    
 
     def _format_results(self, response):
         """Format search results into a structured response."""
         results = []
         for index, obj in enumerate(response.objects, 1):
+            product_id = obj.properties.get("product_id", "Unknown")
             title = obj.properties.get("title", "No Title")
             # description = obj.properties.get("description", "No Description").replace("\n", "<br>")
             categories = obj.properties.get("categories", "No Category")
@@ -68,9 +71,15 @@ class WeaviateSearch:
             price = obj.properties.get("price", "N/A")
             rating = obj.properties.get("rating", "N/A")
             
-            price = obj.properties.get("price", "N/A")
-            rating = obj.properties.get("rating", "N/A")
-            
+            # Find offers for the product
+            offers = self.find_offers_by_product(product_id)
+            offers_html = ""
+            if offers:
+                offers_html = "<h3>Related Offers:</h3><ul>"
+                for offer in offers:
+                    offers_html += f"<li>{offer[1]} - {offer[2]}</li>"
+                offers_html += "</ul>"
+
             result_html = f"""
             <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
                 <h1>Item {index}</h1>
@@ -79,8 +88,7 @@ class WeaviateSearch:
                 <p><strong>Categories:</strong> {categories}</p>
                 <p><strong>Price:</strong> ${price}</p>
                 <p><strong>Rating:</strong> {rating} ⭐</p>
-                <p><strong>Price:</strong> ${price}</p>
-                <p><strong>Rating:</strong> {rating} ⭐</p>
+                {offers_html}
             </div>
             """
             # <p>{description}</p>
@@ -96,7 +104,6 @@ class WeaviateSearch:
         self.client.close()
         logging.info("Weaviate connection closed.")
 
-search_engine = WeaviateSearch()
 search_engine = WeaviateSearch()
 
 def gradio_search(query, price_filter, rating_filter, search_type):
