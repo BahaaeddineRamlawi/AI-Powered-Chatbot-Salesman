@@ -24,6 +24,9 @@ class OffersDatabase:
         """Initialize the database connection."""
         self.db_name = db_name
         self.conn = None
+        self.db_dir = os.path.dirname(self.db_name)
+        if self.db_dir and not os.path.exists(self.db_dir):
+            os.makedirs(self.db_dir, exist_ok=True)
 
     def connect(self):
         """Establish a connection to the SQLite database."""
