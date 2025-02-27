@@ -4,7 +4,8 @@ from sentence_transformers import SentenceTransformer
 from weaviate.classes.query import Filter
 import sqlite3
 
-from utils import logging, config
+from ..utils.logger_setup import logging
+from ..utils.config_loader import config
 
 class WeaviateSearch:
     def __init__(self):
@@ -41,8 +42,7 @@ class WeaviateSearch:
             else:
                 logging.error(f"Model type '{self.model_type}' is not supported yet.")
                 raise ValueError(f"Unsupported model type: {self.model_type}")
-            
-            logging.info(f"Model '{self.model_name}' loaded successfully.")
+
         except Exception as e:
             logging.error(f"Error initializing WeaviateSearch: {e}")
             self.client = None

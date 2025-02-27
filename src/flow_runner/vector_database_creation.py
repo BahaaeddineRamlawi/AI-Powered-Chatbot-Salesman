@@ -4,9 +4,8 @@ from weaviate.classes.config import Configure
 import weaviate
 import weaviate.classes as wvc
 
-from utils import logging, config
-
-
+from ..utils.logger_setup import logging
+from ..utils.config_loader import config
 
 class ProductEmbedder:
     """Handles embedding generation for product data."""

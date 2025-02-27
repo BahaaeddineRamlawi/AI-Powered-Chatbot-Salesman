@@ -3,7 +3,8 @@ import pandas as pd
 import json
 import os
 
-from utils import logging, config
+from ..utils.logger_setup import logging
+from ..utils.config_loader import config
 
 
 class OffersDatabase:

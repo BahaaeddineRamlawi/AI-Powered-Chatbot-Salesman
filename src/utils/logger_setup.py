@@ -1,12 +1,9 @@
-import yaml
 import os
 import logging
 from datetime import datetime
 
-def load_config(config_path="config.yaml"):
-    """Loads the YAML configuration file."""
-    with open(config_path, "r") as file:
-        return yaml.safe_load(file)
+from .config_loader import config
+
 
 def setup_logging(config):
     """Sets up logging based on the config file."""
@@ -23,5 +20,4 @@ def setup_logging(config):
     )
     return logging.getLogger(__name__)
 
-config = load_config()
 logging = setup_logging(config)
