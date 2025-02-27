@@ -3,7 +3,6 @@ from sentence_transformers import SentenceTransformer
 from weaviate.classes.config import Configure
 import weaviate
 import weaviate.classes as wvc
-import numpy as np
 
 from utils import logging, config
 
@@ -85,11 +84,6 @@ class WeaviateHandler:
                         vectorize_property_name=False
                     ),
                     wvc.config.Property(
-                        name="description",
-                        data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
-                    ),
-                    wvc.config.Property(
                         name="rating",
                         data_type=wvc.config.DataType.NUMBER,
                         vectorize_property_name=False
@@ -135,15 +129,14 @@ class WeaviateHandler:
 
             for _, row in df.iterrows():
                 product = {
-                    "product_id": str(row["id"]),
-                    "title": str(row["title"]),
+                    "product_id": None if pd.isna(row["id"]) else str(row["id"]),
+                    "title": None if pd.isna(row["title"]) else str(row["title"]),
                     "price": None if pd.isna(row["price"]) else row["price"],
-                    "categories": row["categories"],
-                    # "description": row["description"],
+                    "categories": None if pd.isna(row["categories"]) else row["categories"],
                     "rating": None if pd.isna(row["rating"]) else row["rating"],
                     "weight": None if pd.isna(row["weight"]) else row["weight"],
-                    "image": row["image"],
-                    "stock_status": row["stock_status"]
+                    "image": None if pd.isna(row["image"]) else row["image"],
+                    "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
                 }
 
                 # Add the pre-generated embeddings
@@ -159,7 +152,7 @@ class WeaviateHandler:
             logging.error(f"Error inserting data: {e}")
             raise
 
-    def close_connection(self):
+    def close(self):
         """Close Weaviate connection properly."""
         try:
             self.client.close()
@@ -192,4 +185,4 @@ if __name__ == "__main__":
         logging.critical(f"Critical Error: {main_error}")
 
     finally:
-        weaviate_handler.close_connection()
+        weaviate_handler.close()

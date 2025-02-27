@@ -62,7 +62,7 @@ class ProductDataCleaner:
 
     def clean_data(self, df):
         """Clean the product data to ensure no NaN, inf, or invalid values."""
-        df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(r'[ $,]', '', regex=True), errors='coerce').fillna(0.0)
+        df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(r'[ $,]', '', regex=True), errors='coerce').apply(lambda x: np.nan if pd.isna(x) else x)
         
         df["rating"] = df["rating"].apply(self.extract_rating)
 

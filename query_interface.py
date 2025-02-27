@@ -245,4 +245,7 @@ iface = gr.Interface(
     title="AI-Powered Product Search"
 )
 
-iface.launch()
+try:
+    iface.launch()
+finally:
+    search_engine.close()
