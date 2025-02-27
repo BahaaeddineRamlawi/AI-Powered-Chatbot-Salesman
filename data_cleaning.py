@@ -1,24 +1,10 @@
-import os
 import pandas as pd
 import re
-import logging
-from datetime import datetime
-import yaml
 from mistralai import Mistral
 import time
 import numpy as np
 
-with open("config.yaml", "r") as file:
-    config = yaml.safe_load(file)
-
-os.makedirs(config['logging']['logs_dir'], exist_ok=True)
-
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s', 
-    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
-    filemode='a'
-)
+from utils import logging, config
 
 class ProductDataCleaner:
     def __init__(self, file_path):

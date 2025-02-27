@@ -15,8 +15,21 @@ weaviate:
 embedding:
   model_name: "all-MiniLM-L6-v2"
 
+llm:
+  provider: "gemini" # openai - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it - mistral
+  temperature: 0.0
+
+google:
+  api_key: "AIzaSyCNd9IJQ7_n_CuwFDoJ_pspYEJ024hZ28U"
+
+openai:
+  api_key: ""
+
+groq:
+  api_key: "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"
+
 mistral:
-  api_key: "your_mistral_api_key"
+  api_key: "XxcQ9HViJPZbUM7wdEsRU37HISMkyv2j"
   model: "mistral-large-latest"
 
 database:

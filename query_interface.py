@@ -1,24 +1,10 @@
 import weaviate
-import logging
 import gradio as gr
 from sentence_transformers import SentenceTransformer
-from datetime import datetime
 from weaviate.classes.query import Filter
 import sqlite3
-import yaml
-import os
 
-with open("config.yaml", "r") as file:
-    config = yaml.safe_load(file)
-
-os.makedirs(config['logging']['logs_dir'], exist_ok=True)
-
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s', 
-    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
-    filemode='a'
-)
+from utils import logging, config
 
 class WeaviateSearch:
     def __init__(self):
