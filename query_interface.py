@@ -12,28 +12,35 @@ class WeaviateSearch:
         try:
             self.collection_name = config["weaviate"]["collection_name"]
             self.model_name = config["embedding"]["model_name"]
+            self.model_type = config["embedding"]["model_type"]
             self.db_name = config["database"]["name"]
 
-            # Initialize Weaviate, model, and database
+            # Initialize Weaviate
             logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
             if not self.client:
                 logging.error("Failed to connect to Weaviate.")
-                return
+                raise
             
             logging.info("Connected to Weaviate.")
             self.collection = self.client.collections.get(self.collection_name)
             if not self.collection:
                 logging.error(f"Collection '{self.collection_name}' not found.")
-                return
+                raise
 
             logging.info(f"Collection '{self.collection_name}' loaded successfully.")
 
             # Load SentenceTransformer model
-            self.model = SentenceTransformer(self.model_name)
-            if not self.model:
-                logging.error(f"Model '{self.model_name}' could not be loaded.")
-                return
+            if self.model_type.lower() == "sentencetransformer":
+                try:
+                    self.model = SentenceTransformer(self.model_name)
+                    logging.info(f"Model '{self.model_name}' loaded successfully.")
+                except Exception as e:
+                    logging.error(f"Error loading embedding model: {e}")
+                    raise RuntimeError(f"Failed to initialize embedding model: {e}")
+            else:
+                logging.error(f"Model type '{self.model_type}' is not supported yet.")
+                raise ValueError(f"Unsupported model type: {self.model_type}")
             
             logging.info(f"Model '{self.model_name}' loaded successfully.")
         except Exception as e:
