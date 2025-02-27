@@ -3,37 +3,29 @@ from sentence_transformers import SentenceTransformer
 from weaviate.classes.config import Configure
 import weaviate
 import weaviate.classes as wvc
-import numpy as np
-import logging
-from datetime import datetime
-import yaml
-import os
 
-with open("config.yaml", "r") as file:
-    config = yaml.safe_load(file)
-
-os.makedirs(config['logging']['logs_dir'], exist_ok=True)
-
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s', 
-    filename=f"{config['logging']['logs_dir']}/app_log_{datetime.now().strftime('%Y-%m-%d')}.log",
-    filemode='a'
-)
+from utils import logging, config
 
 
 
 class ProductEmbedder:
     """Handles embedding generation for product data."""
     
-    def __init__(self, model_name=config['embedding']['model_name']):
-        """Initialize the sentence transformer model."""
-        try:
-            self.model = SentenceTransformer(model_name)
-            logging.info("Embedding model initialized successfully.")
-        except Exception as e:
-            logging.error(f"Error initializing embedding model: {e}")
-            raise
+    def __init__(self):
+        """Initialize the embedding model based on the config file."""
+        model_type = config['embedding']['model_type'] 
+        model_name = config['embedding']['model_name']
+        
+        if model_type == "sentencetransformer":
+            try:
+                self.model = SentenceTransformer(model_name)
+                logging.info(f"Embedding model '{model_name}' initialized successfully.")
+            except Exception as e:
+                logging.error(f"Error initializing embedding model: {e}")
+                raise
+        else:
+            logging.error(f"Model type '{model_type}' is not supported yet.")
+            raise ValueError(f"Unsupported model type: {model_type}")  # Raise an error
 
 
     def generate_embeddings(self, df):
@@ -92,11 +84,6 @@ class WeaviateHandler:
                         vectorize_property_name=False
                     ),
                     wvc.config.Property(
-                        name="description",
-                        data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
-                    ),
-                    wvc.config.Property(
                         name="rating",
                         data_type=wvc.config.DataType.NUMBER,
                         vectorize_property_name=False
@@ -142,15 +129,14 @@ class WeaviateHandler:
 
             for _, row in df.iterrows():
                 product = {
-                    "product_id": str(row["id"]),
-                    "title": str(row["title"]),
+                    "product_id": None if pd.isna(row["id"]) else str(row["id"]),
+                    "title": None if pd.isna(row["title"]) else str(row["title"]),
                     "price": None if pd.isna(row["price"]) else row["price"],
-                    "categories": row["categories"],
-                    # "description": row["description"],
+                    "categories": None if pd.isna(row["categories"]) else row["categories"],
                     "rating": None if pd.isna(row["rating"]) else row["rating"],
                     "weight": None if pd.isna(row["weight"]) else row["weight"],
-                    "image": row["image"],
-                    "stock_status": row["stock_status"]
+                    "image": None if pd.isna(row["image"]) else row["image"],
+                    "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
                 }
 
                 # Add the pre-generated embeddings
@@ -166,7 +152,7 @@ class WeaviateHandler:
             logging.error(f"Error inserting data: {e}")
             raise
 
-    def close_connection(self):
+    def close(self):
         """Close Weaviate connection properly."""
         try:
             self.client.close()
@@ -199,4 +185,4 @@ if __name__ == "__main__":
         logging.critical(f"Critical Error: {main_error}")
 
     finally:
-        weaviate_handler.close_connection()
+        weaviate_handler.close()
