@@ -171,18 +171,18 @@ class WeaviateHandler:
                             "products": []
                         }
 
-                    for pid in product_ids:
-                        product_response = self.collection.query.fetch_objects(
-                            filters=Filter.by_property("product_id").equal(pid)
-                        )
-                        if product_response.objects:
-                            product_obj = product_response.objects[0].properties
-                            product_image = product_obj.get("image", "none")
-                            product_title = product_obj.get("title", "No Title")
-                            all_offers[offer_id]["products"].append({
-                                "image": product_image,
-                                "title": product_title
-                            })
+                        for pid in product_ids:
+                            product_response = self.collection.query.fetch_objects(
+                                filters=Filter.by_property("product_id").equal(pid)
+                            )
+                            if product_response.objects:
+                                product_obj = product_response.objects[0].properties
+                                product_image = product_obj.get("image", "none")
+                                product_title = product_obj.get("title", "No Title")
+                                all_offers[offer_id]["products"].append({
+                                    "image": product_image,
+                                    "title": product_title
+                                })
 
             result_html = f"""
             <div style="border: 1px solid #ddd; border-radius: 10px; padding: 10px; margin-bottom: 10px;">
