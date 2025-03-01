@@ -98,5 +98,5 @@ class ProductDataCleaner:
             logging.error(f"Error processing file: {e}")
             return None
 
-cleaner = ProductDataCleaner(config['input_file']['products_data_path'])
-cleaned_file = cleaner.process_file()
+# cleaner = ProductDataCleaner(config['input_file']['products_data_path'])
+# cleaned_file = cleaner.process_file()
