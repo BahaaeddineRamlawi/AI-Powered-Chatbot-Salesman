@@ -61,6 +61,21 @@ class OffersDatabase:
             logging.info("Data inserted successfully into the database.")
         except Exception as e:
             logging.error(f"Error inserting data: {e}")
+    
+    def find_offers_by_product(self, product_id):
+        """Find offers that contain a given product ID."""
+        try:
+            cursor = self.conn.cursor()
+            query = """
+                SELECT * FROM offers
+                WHERE ? IN (SELECT value FROM json_each(product_list))
+            """
+            cursor.execute(query, (str(product_id),))
+            results = cursor.fetchall()
+            return results
+        except Exception as e:
+            logging.error(f"Error fetching offers for product {product_id}: {e}")
+            return []
 
     def close(self):
         """Close the database connection."""
@@ -68,10 +83,3 @@ class OffersDatabase:
             self.conn.close()
             logging.info("Database connection closed.")
 
-
-if __name__ == "__main__":
-    db = OffersDatabase()
-    db.connect()
-    db.create_table()
-    db.insert_data()
-    db.close()
