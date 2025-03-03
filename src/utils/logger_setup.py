@@ -4,7 +4,6 @@ from datetime import datetime
 
 from .config_loader import config
 
-
 def setup_logging(config):
     """Sets up logging based on the config file."""
     logs_dir = config['logging']['logs_dir']

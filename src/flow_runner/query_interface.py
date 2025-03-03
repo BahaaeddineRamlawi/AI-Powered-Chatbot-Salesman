@@ -1,5 +1,4 @@
-from ..data_retriever.weaviate import WeaviateHandler
-from ..data_retriever.gradio_search import GradioSearchApp
+from src.data_retriever import WeaviateHandler, GradioSearchApp
 
 if __name__ == "__main__":
     weaviate_handler = WeaviateHandler()

@@ -4,8 +4,7 @@ from mistralai import Mistral
 import time
 import numpy as np
 
-from ..utils.logger_setup import logging
-from ..utils.config_loader import config
+from src.utils import logging, config
 
 class ProductDataCleaner:
     def __init__(self, file_path):

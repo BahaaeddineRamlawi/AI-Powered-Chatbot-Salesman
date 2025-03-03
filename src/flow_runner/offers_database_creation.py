@@ -1,4 +1,4 @@
-from ..data_retriever.offers import OffersDatabase
+from src.data_retriever import OffersDatabase
 
 
 if __name__ == "__main__":

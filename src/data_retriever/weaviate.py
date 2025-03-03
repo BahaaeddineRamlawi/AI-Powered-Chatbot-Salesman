@@ -4,10 +4,9 @@ from weaviate.classes.config import Configure
 import weaviate.classes as wvc
 from weaviate.classes.query import Filter
 
-from ..utils.logger_setup import logging
-from ..utils.config_loader import config
-from ..data_retriever.offers import OffersDatabase
-from ..data_retriever.embedder import ProductEmbedder
+from src.utils import logging, config
+from .offers import OffersDatabase
+from .embedder import ProductEmbedder
 
 class WeaviateHandler:
     """Handles connection and data management in Weaviate."""

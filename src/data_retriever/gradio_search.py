@@ -1,6 +1,7 @@
 import gradio as gr
-import logging
 from weaviate.classes.query import Filter
+
+from src.utils import logging
 
 class GradioSearchApp:
     def __init__(self, search_engine):
