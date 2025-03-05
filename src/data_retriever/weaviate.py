@@ -138,9 +138,9 @@ class WeaviateHandler:
             logging.error(f"Error inserting data: {e}")
             raise
     
-    def _format_results(self, response):
-        """Format search results into a structured response."""
-        results = []
+    def format_results(self, response):
+        """Format search results into a structured response as a string."""
+        products_str = []
         all_offers = {}
 
         for index, obj in enumerate(response.objects, 1):
@@ -149,15 +149,23 @@ class WeaviateHandler:
             categories = obj.properties.get("categories", "No Category")
             image_url = obj.properties.get("image", "none")
             price = obj.properties.get("price", "N/A")
+            weight = obj.properties.get("weight", "N/A")
             rating = obj.properties.get("rating", "N/A")
 
             self.db.connect()
             offers = self.db.find_offers_by_product(product_id)
             self.db.close()
-            offers_text = ""
+
+            product_str = f"Product {index} - ID: {product_id}\n"
+            product_str += f"Title: {title}\n"
+            product_str += f"Categories: {categories}\n"
+            product_str += f"Price: {price}\n"
+            product_str += f"Weight: {weight}\n"
+            product_str += f"Rating: {rating}\n"
+            product_str += f"Image URL: {image_url}\n"
+            # product_str += "Offers:\n"
 
             if offers:
-                offers_text = "<p><strong>Special Offers Available:</strong> Check the offers section below.</p>"
                 for offer in offers:
                     offer_id, offer_name, offer_price, _, _, offer_desc, _, _, _, _, product_list_json = offer
                     product_ids = eval(product_list_json)
@@ -170,57 +178,50 @@ class WeaviateHandler:
                             "products": []
                         }
 
-                        for pid in product_ids:
-                            product_response = self.collection.query.fetch_objects(
-                                filters=Filter.by_property("product_id").equal(pid)
-                            )
-                            if product_response.objects:
-                                product_obj = product_response.objects[0].properties
-                                product_image = product_obj.get("image", "none")
-                                product_title = product_obj.get("title", "No Title")
-                                all_offers[offer_id]["products"].append({
-                                    "image": product_image,
-                                    "title": product_title
-                                })
+                    for pid in product_ids:
+                        product_response = self.collection.query.fetch_objects(
+                            filters=Filter.by_property("product_id").equal(pid)
+                        )
+                        if product_response.objects:
+                            product_obj = product_response.objects[0].properties
+                            product_image = product_obj.get("image", "none")
+                            product_title = product_obj.get("title", "No Title")
+                            all_offers[offer_id]["products"].append({
+                                "image": product_image,
+                                "title": product_title
+                            })
 
-            result_html = f"""
-            <div style="border: 1px solid #ddd; border-radius: 10px; padding: 10px; margin-bottom: 10px;">
-                <h1>Item {index}</h1>
-                <img src="{image_url}" alt="Product Image" style="width: 200px; height: auto; border-radius: 10px;">
-                <h2>{title}</h2>
-                <p><strong>Categories:</strong> {categories}</p>
-                <p><strong>Price:</strong> ${price}</p>
-                <p><strong>Rating:</strong> {rating} ⭐</p>
-                {offers_text}
-            </div>
-            """
+            #     for offer in all_offers.values():
+            #         offer_details = f"Offer: {offer['name']} - Price: {offer['price']}\n"
+            #         offer_details += f"Description: {offer['description']}\n"
+            #         for product in offer["products"]:
+            #             offer_details += f"- {product['title']} (Image: {product['image']})\n"
+            #         product_str += offer_details
+            # else:
+            #     product_str += "No offers available.\n"
+            
+            products_str.append(product_str)
 
-            results.append(result_html)
-
+        offers_str = ""
         if all_offers:
-            all_offers_html = "<h2>All Available Offers:</h2>"
+            offers_str = "Offers:\n"
             for offer in all_offers.values():
-                product_images_html = "".join(
-                    f"""
-                    <div style="text-align: center; margin-right: 15px;display: flex; flex-direction: column; align-items: center; border: 1px solid white; padding-bottom: 5px; border-radius: 10px; width: 100px;">
-                        <img src="{prod['image']}" alt="Offer Product" style="width: 100px; height: 100px; border-radius: 8px; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
-                        <p style="font-size: 12px; margin-top: 5px;">{prod['title']}</p>
-                    </div>
-                    """
-                    for prod in offer["products"]
-                )
-                all_offers_html += f"""
-                <div style="border: 1px solid #aaa; border-radius: 10px; padding: 10px; margin-top: 10px;">
-                    <h3 style="margin-top: 0px;">{offer["name"]} - {offer["price"]}</h3>
-                    <p>{offer["description"]}</p>
-                    <div style="display: flex; flex-wrap: wrap;">{product_images_html}</div>
-                </div>
-                """
+                offer_details = f"Offer: {offer['name']} - Price: {offer['price']}\n"
+                offer_details += f"Description: {offer['description']}\n"
+                for product in offer["products"]:
+                    offer_details += f"- {product['title']} (Image: {product['image']})\n"
+                offers_str += offer_details
+        else:
+            offers_str = "No current offers available for the matching products.\n"
 
-            results.append(all_offers_html)
+        if products_str:
+            result_str = "\n".join(products_str) + "\n\n" + offers_str
+        else:
+            result_str = "No matching items found.\n"
 
-        logging.info(f"Found {len(results)} results, including {len(all_offers)} offers")
-        return results if results else ["No matching items found."]
+        logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
+        return result_str
+
     
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
@@ -238,7 +239,7 @@ class WeaviateHandler:
                 target_vector="info_vector",
                 filters=filters
             )
-            return self._format_results(response)
+            return self.format_results(response)
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
             return ["Error: Hybrid search failed."]
@@ -253,7 +254,7 @@ class WeaviateHandler:
             response = self.collection.query.bm25(
                 query=query, limit=limit, filters=filters
             )
-            return self._format_results(response)
+            return self.format_results(response)
         except Exception as e:
             logging.error(f"Keyword search failed: {e}")
             return ["Error: Keyword search failed."]
