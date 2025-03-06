@@ -52,10 +52,3 @@ class ChatbotHandler:
         except Exception as e:
             logging.error(f"Error launching chatbot: {e}")
             raise
-
-if __name__ == "__main__":
-    try:
-        chatbot_handler = ChatbotHandler()
-        chatbot_handler.launch_chatbot()
-    except Exception as e:
-        logging.error(f"Fatal error: {e}")

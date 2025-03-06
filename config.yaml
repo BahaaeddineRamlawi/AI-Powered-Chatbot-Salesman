@@ -17,14 +17,14 @@ embedding:
   model_type: "sentencetransformer"
 
 llm:
-  provider: "gemini" # openai - mistral - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it
-  temperature: 0.0
+  provider: "azure_openai" # openai - mistral - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it - azure_openai
+  temperature: 0.2
 
 azure_openai:
   api_key: "AGhTozOxLUifud6ZLHEKvdwCjXV2ms9brmSvh9aBF259zp6sTVByJQQJ99BCACYeBjFXJ3w3AAABACOGQEZJ"
   azure_endpoint: "https://fyp-openai.openai.azure.com/"
   azure_deployment: "gpt-4o-mini"
-  api_version: "2024-07-18"
+  api_version: "2023-12-01-preview"
 
 openai:
   api_key: ""

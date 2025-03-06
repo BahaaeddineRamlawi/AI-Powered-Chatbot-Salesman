@@ -50,22 +50,27 @@ class LLMHandler:
                 {search_results}
 
                 ### Instructions:
-                1. **If the user's question is related to products or offers:**
+                1. **Product Selection Criteria:**
+                - Always return up to **5** products.
+                - If an exact match is unavailable, choose the closest matching product based on the user query.
+                - Make sure the selected products are still relevant to the user's request.
+
+                2. **If the user's question is related to products or offers:**
                 - ONLY use the provided product list and offers.
                 - DO NOT hallucinate or create products that are not in the given list.
-                - Always provide available offers.
-                - Include product images where available.
+                - Always provide available offers and **explicitly mention that offers are available** before listing products.
+                - Include product images where available (with a size of **200px max**).
 
-                2. **If the user's question is a general greeting or unrelated to products:**
+                3. **If the user's question is a general greeting or unrelated to products:**
                 - Respond naturally, as a human would.
                 - For greetings like "hello", keep the response friendly and short without providing irrelevant information.
 
-                3. **If no products are found:**
-                - Respond with: "Sorry, no products match your query at the moment."
+                4. **If no products are found:**
+                - Respond with: **"Sorry, no products match your query at the moment. However, you can try adjusting your search criteria or checking related categories."**
 
                 ### IMPORTANT:
                 - Never add extra products or offers that are not explicitly provided.
-                - Never generate imaginary product names, images.
+                - Never generate imaginary product names, images, or details.
                 - Always mention offers if there are any.
                 - Prioritize clarity, accuracy, and helpfulness.
 
@@ -89,8 +94,8 @@ class LLMHandler:
 
     def _init_azure_openai(self):
         self.llm = AzureChatOpenAI(
-            azure_deployment=config["azure_openai"]["azure_deployment"],
-            api_version=config["azure_openai"]["api_version"],
+            deployment_name=config["azure_openai"]["azure_deployment"],
+            openai_api_version=config["azure_openai"]["api_version"],
             temperature=config["llm"]["temperature"],
             openai_api_key=config["azure_openai"]["api_key"],
             azure_endpoint=config["azure_openai"]["azure_endpoint"],
