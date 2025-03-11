@@ -19,7 +19,6 @@ class ChatbotHandler:
             knowledge = self.search_engine.hybrid_search(message)
             
             logging.info(f"Received message: {message}")
-            logging.info(f"Knowledge retrieved: {knowledge}")
 
             if message is not None:
                 partial_message = ""

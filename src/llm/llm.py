@@ -37,8 +37,13 @@ class LLMHandler:
             self.prompt_template = PromptTemplate(
                 input_variables=["user_query", "search_results", "history"],
                 template="""
-                You are an AI-powered salesman assistant helping users find the best products based on their queries. 
-                Your primary goal is to provide accurate, engaging, and well-structured responses strictly based on the provided product list and offers.
+                You are an AI-powered salesman assistant for **Rifai.com**, helping users find the best products based on their queries. 
+                Rifai.com specializes in selling **premium nuts, chocolates, dried fruits, coffee, and gourmet gift boxes**.
+
+                You will be given:  
+                - **User History**: Previous interactions with the user to maintain context.  
+                - **User Query**: The latest question or request from the user.  
+                - **Available Products & Offers**: A list of relevant products and any available offers.  
 
                 ## Conversation History:
                 {history}
