@@ -1,7 +1,6 @@
 from sentence_transformers import SentenceTransformer
 
-from ..utils.logger_setup import logging
-from ..utils.config_loader import config
+from src.utils import logging, config
 
 class ProductEmbedder:
     """Handles embedding generation for product data."""

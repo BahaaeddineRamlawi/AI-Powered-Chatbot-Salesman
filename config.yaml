@@ -17,21 +17,29 @@ embedding:
   model_type: "sentencetransformer"
 
 llm:
-  provider: "gemini" # openai - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it - mistral
-  temperature: 0.0
+  provider: "azure_openai" # openai - mistral - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it - azure_openai
+  temperature: 0.2
 
-google:
-  api_key: "AIzaSyCNd9IJQ7_n_CuwFDoJ_pspYEJ024hZ28U"
+azure_openai:
+  api_key: "AGhTozOxLUifud6ZLHEKvdwCjXV2ms9brmSvh9aBF259zp6sTVByJQQJ99BCACYeBjFXJ3w3AAABACOGQEZJ"
+  azure_endpoint: "https://fyp-openai.openai.azure.com/"
+  azure_deployment: "gpt-4o-mini"
+  api_version: "2023-12-01-preview"
 
 openai:
   api_key: ""
-
-groq:
-  api_key: "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"
+  model: ""
 
 mistral:
   api_key: "XxcQ9HViJPZbUM7wdEsRU37HISMkyv2j"
   model: "mistral-large-latest"
+
+gemini:
+  api_key: "AIzaSyCNd9IJQ7_n_CuwFDoJ_pspYEJ024hZ28U"
+  model: "gemini-1.5-pro"
+
+groq:
+  api_key: "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"
 
 database:
   name: "./database/offers_database.db"

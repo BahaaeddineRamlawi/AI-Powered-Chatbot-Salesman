@@ -1,9 +1,7 @@
 import pandas as pd
 
-from ..utils.logger_setup import logging
-from ..utils.config_loader import config
-from ..data_retriever.weaviate import WeaviateHandler
-from ..data_retriever.embedder import ProductEmbedder
+from src.utils import logging, config
+from src.data_retriever import WeaviateHandler, ProductEmbedder
 
 def process_and_store_products():
     """Reads product data, generates embeddings, and stores in Weaviate."""
