@@ -1,7 +1,7 @@
 import gradio as gr
 
 from .llm import LLMHandler
-from src.data_retriever import WeaviateHandler
+from src.data_retriever import WeaviateHandler, RecommendationHandler
 from src.utils import logging
 
 
@@ -9,6 +9,7 @@ class ChatbotHandler:
     def __init__(self):
         self.llmhandler = LLMHandler()
         self.search_engine = WeaviateHandler()
+        self.recommendation_engine = RecommendationHandler()
 
     def stream_response(self, message, history):
         """
@@ -16,8 +17,13 @@ class ChatbotHandler:
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
-            knowledge = self.search_engine.hybrid_search(message)
+            knowledge,product_ids = self.search_engine.hybrid_search(message)
+            if not product_ids:
+                recommendation_items = "No product IDs available for recommendation."
+            else:
+                recommendation_items = self.recommendation_engine.hybrid_recommendation(2001, product_ids[0])
             
+            print(recommendation_items)
             logging.info(f"Received message: {message}")
 
             if message is not None:

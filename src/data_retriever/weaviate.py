@@ -142,6 +142,7 @@ class WeaviateHandler:
         """Format search results into a structured response as a string."""
         products_str = []
         all_offers = {}
+        similar_product_ids = []
 
         for index, obj in enumerate(response.objects, 1):
             product_id = obj.properties.get("product_id", "Unknown")
@@ -164,6 +165,8 @@ class WeaviateHandler:
             product_str += f"Rating: {rating}\n"
             product_str += f"Image URL: {image_url}\n"
             # product_str += "Offers:\n"
+
+            similar_product_ids.append(product_id)
 
             if offers:
                 for offer in offers:
@@ -220,7 +223,7 @@ class WeaviateHandler:
             result_str = "No matching items found.\n"
 
         logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
-        return result_str
+        return result_str, similar_product_ids
 
     
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
