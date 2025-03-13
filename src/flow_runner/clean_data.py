@@ -1,6 +1,11 @@
-from src.utils import config
 from src.data_retriever import ProductDataCleaner
+from src.utils import logging
 
 if __name__ == "__main__":
-    cleaner = ProductDataCleaner(config['input_file']['products_data_path'])
-    cleaned_file = cleaner.process_file()
+    try:
+        cleaner = ProductDataCleaner()
+        cleaned_file = cleaner.process_file()
+        logging.info("File processed successfully.")
+    
+    except Exception as e:
+        logging.error(f"Error during file processing: {e}")

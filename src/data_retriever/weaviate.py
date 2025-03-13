@@ -20,7 +20,6 @@ class WeaviateHandler:
             self.db = OffersDatabase()
             self.embedder = ProductEmbedder()
 
-            # Initialize Weaviate
             logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
             if not self.client:
@@ -56,6 +55,11 @@ class WeaviateHandler:
                     ),
                     wvc.config.Property(
                         name="title",
+                        data_type=wvc.config.DataType.TEXT,
+                        vectorize_property_name=False
+                    ),
+                    wvc.config.Property(
+                        name="link",
                         data_type=wvc.config.DataType.TEXT,
                         vectorize_property_name=False
                     ),
@@ -110,13 +114,13 @@ class WeaviateHandler:
     def insert_data(self, df):
         """Insert product data into Weaviate."""
         try:
-            collection = self.client.collections.get(self.collection_name)
             logging.info("Inserting data into Weaviate...")
 
             for _, row in df.iterrows():
                 product = {
                     "product_id": None if pd.isna(row["id"]) else str(row["id"]),
                     "title": None if pd.isna(row["title"]) else str(row["title"]),
+                    "link": None if pd.isna(row["link"]) else str(row["link"]),
                     "price": None if pd.isna(row["price"]) else row["price"],
                     "categories": None if pd.isna(row["categories"]) else row["categories"],
                     "rating": None if pd.isna(row["rating"]) else row["rating"],
@@ -125,11 +129,9 @@ class WeaviateHandler:
                     "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
                 }
 
-                # Add the pre-generated embeddings
                 product["info_vector"] = row["info_vector"].tolist() 
 
-                # Insert the data with the embeddings
-                collection.data.insert(
+                self.collection.data.insert(
                     properties=product,
                 )
 
@@ -147,6 +149,7 @@ class WeaviateHandler:
         for index, obj in enumerate(response.objects, 1):
             product_id = obj.properties.get("product_id", "Unknown")
             title = obj.properties.get("title", "No Title")
+            link = obj.properties.get("link", "No Link")
             categories = obj.properties.get("categories", "No Category")
             image_url = obj.properties.get("image", "none")
             price = obj.properties.get("price", "N/A")
@@ -159,12 +162,12 @@ class WeaviateHandler:
 
             product_str = f"Product {index} - ID: {product_id}\n"
             product_str += f"Title: {title}\n"
+            product_str += f"Link: {link}\n"
             product_str += f"Categories: {categories}\n"
             product_str += f"Price: {price}\n"
             product_str += f"Weight: {weight}\n"
             product_str += f"Rating: {rating}\n"
             product_str += f"Image URL: {image_url}\n"
-            # product_str += "Offers:\n"
 
             similar_product_ids.append(product_id)
 
@@ -193,15 +196,6 @@ class WeaviateHandler:
                                 "image": product_image,
                                 "title": product_title
                             })
-
-            #     for offer in all_offers.values():
-            #         offer_details = f"Offer: {offer['name']} - Price: {offer['price']}\n"
-            #         offer_details += f"Description: {offer['description']}\n"
-            #         for product in offer["products"]:
-            #             offer_details += f"- {product['title']} (Image: {product['image']})\n"
-            #         product_str += offer_details
-            # else:
-            #     product_str += "No offers available.\n"
             
             products_str.append(product_str)
 
@@ -224,6 +218,26 @@ class WeaviateHandler:
 
         logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
         return result_str, similar_product_ids
+    
+    def process_and_store_products(self):
+        """Reads product data, generates embeddings, and stores in Weaviate."""
+        try:
+            try:
+                df = pd.read_csv(config['input_file']['cleaned_products_data_path'])
+                logging.info("File successfully read")
+            except UnicodeDecodeError as e:
+                logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")
+                raise
+
+            df = self.embedder.generate_embeddings(df)
+            self.create_schema()
+            self.insert_data(df)
+        
+        except Exception as main_error:
+            logging.critical(f"Critical Error: {main_error}")
+        
+        finally:
+            self.close()
 
     
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):

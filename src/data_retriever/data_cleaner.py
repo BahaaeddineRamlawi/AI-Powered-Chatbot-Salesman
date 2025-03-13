@@ -7,8 +7,8 @@ import numpy as np
 from src.utils import logging, config
 
 class ProductDataCleaner:
-    def __init__(self, file_path):
-        self.file_path = file_path
+    def __init__(self):
+        self.file_path = config['input_file']['products_data_path']
         self.client = Mistral(api_key=config['mistral']['api_key'])
         self.model = config['mistral']['model']
 

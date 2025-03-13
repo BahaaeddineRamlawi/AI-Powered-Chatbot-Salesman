@@ -7,9 +7,9 @@ from src.utils import logging
 
 class ChatbotHandler:
     def __init__(self):
-        self.llmhandler = LLMHandler()
         self.search_engine = WeaviateHandler()
         self.recommendation_engine = RecommendationHandler()
+        self.llmhandler = LLMHandler()
 
     def stream_response(self, message, history):
         """
@@ -18,13 +18,9 @@ class ChatbotHandler:
         """
         try:
             knowledge,product_ids = self.search_engine.hybrid_search(message)
-            if not product_ids:
-                recommendation_items = "No product IDs available for recommendation."
-            else:
-                recommendation_items = self.recommendation_engine.hybrid_recommendation(2001, product_ids[0])
-            
-            print(recommendation_items)
             logging.info(f"Received message: {message}")
+
+            self.get_recommendation(user_id=2001,product_ids=product_ids)
 
             if message is not None:
                 partial_message = ""
@@ -57,3 +53,13 @@ class ChatbotHandler:
         except Exception as e:
             logging.error(f"Error launching chatbot: {e}")
             raise
+    
+    def get_recommendation(self, user_id, product_ids):
+        """Retrieve product recommendations"""
+        try:
+            if not product_ids:
+                return "No product IDs available for recommendation."
+            return self.recommendation_engine.hybrid_recommendation(user_id, product_ids[0])
+        except Exception as e:
+            logging.error(f"Error getting recommendation: {e}")
+            return "There was an error retrieving recommendations."

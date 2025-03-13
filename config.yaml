@@ -19,7 +19,7 @@ embedding:
 
 llm:
   provider: "azure_openai" # openai - mistral - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it - azure_openai
-  temperature: 0.2
+  temperature: 0.1
 
 azure_openai:
   api_key: "AGhTozOxLUifud6ZLHEKvdwCjXV2ms9brmSvh9aBF259zp6sTVByJQQJ99BCACYeBjFXJ3w3AAABACOGQEZJ"
@@ -44,3 +44,4 @@ groq:
 
 database:
   name: "./database/offers_database.db"
+  history_name: "./database/history_database.db"
