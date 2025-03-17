@@ -1,18 +1,38 @@
 import pandas as pd
+import sqlite3
+import json
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import GridSearchCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
-
 from src.utils import logging, config
 
 class RecommendationHandler:
     def __init__(self):
-        self.ratings_data = pd.read_csv(config["input_file"]["user_rating_datapath"])
+        self.db_path = config['database']['history_name']
         self.products_data = pd.read_csv(config["input_file"]["cleaned_products_data_path"])
+        self._load_ratings_from_db()
         self._prepare_data()
         self._train_model()
         self._compute_content_similarity()
+    
+    def _load_ratings_from_db(self):
+        """Load user ratings from the SQLite database."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            query = "SELECT user_id, product_list FROM user_history"
+            df = pd.read_sql(query, conn)
+            conn.close()
+            
+            ratings = []
+            for _, row in df.iterrows():
+                user_id = row["user_id"]
+                product_list = json.loads(row["product_list"])
+                ratings.extend([(user_id, item[0], item[1]) for item in product_list])
+            
+            self.ratings_data = pd.DataFrame(ratings, columns=["user_id", "product_id", "rating"])
+        except Exception as e:
+            logging.error(f"Error loading ratings from database: {e}")
     
     def _prepare_data(self):
         self.ratings_data = self.ratings_data.merge(
