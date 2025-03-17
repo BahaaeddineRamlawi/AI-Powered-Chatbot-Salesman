@@ -60,7 +60,9 @@ class RecommendationHandler:
         # Create a mapping of product ID to index in the content similarity matrix
         self.product_id_to_index = {product_id: idx for idx, product_id in enumerate(self.products_data["id"].values)}
     
-    def get_hybrid_recommendations(self, user_id, n=5, alpha=0.7):
+    def get_hybrid_recommendations(self, user_id):
+        alpha = config['recommendation_system']['alpha']
+        n = config['recommendation_system']['n']
         all_product_ids = self.ratings_data["id"].unique()
         rated_products = self.ratings_data[self.ratings_data["user_id"] == user_id]["id"]
         cf_predictions = {

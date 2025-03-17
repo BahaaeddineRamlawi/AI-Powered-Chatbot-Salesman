@@ -10,6 +10,11 @@ class ChatbotHandler:
         self.search_engine = WeaviateHandler()
         self.recommendation_engine = RecommendationHandler()
         self.llmhandler = LLMHandler()
+        self.recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=2001)
+        
+        self.recommendation_str = "Top 5 hybrid recommendations for you:\n"
+        for idx, (product, _) in enumerate(self.recommended_products, 1):
+            self.recommendation_str += f"{idx}. {product}\n"
 
     def stream_response(self, message, history):
         """
@@ -19,17 +24,13 @@ class ChatbotHandler:
         try:
             knowledge = self.search_engine.hybrid_search(message)
             logging.info(f"Received message: {message}")
-
-            # recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=2001, n=5, alpha=0.7)
-            # print(f"Top 5 hybrid recommendations for User 2001:")
-            # for idx, (product, score) in enumerate(recommended_products, 1):
-            #     print(f"{idx}. {product} (Score: {score:.2f})")
+            print(self.recommendation_str)
 
             if message is not None:
                 partial_message = ""
 
                 rag_prompt = self.llmhandler.process_with_llm(
-                    message, knowledge, history
+                    message, knowledge, history, self.recommendation_str
                 )
 
                 for response in self.llmhandler.stream(rag_prompt):
