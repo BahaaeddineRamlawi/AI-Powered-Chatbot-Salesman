@@ -140,11 +140,35 @@ class WeaviateHandler:
             logging.error(f"Error inserting data: {e}")
             raise
     
+
+    def get_all_items(self):
+        """
+        Retrieve all items from the Weaviate collection.
+        :return: List of all items in the database.
+        """
+        try:
+            logging.info("Fetching all items from Weaviate...")
+
+            response = self.collection.query.fetch_objects()
+            
+            # Extract objects safely
+            if response and response.objects:
+                items = [obj.properties for obj in response.objects]
+                logging.info(f"Retrieved {len(items)} items from Weaviate.")
+                return items
+            else:
+                logging.warning("No items found in Weaviate.")
+                return []
+
+        except Exception as e:
+            logging.error(f"Error fetching all items: {e}")
+            return []
+
+
     def format_results(self, response):
         """Format search results into a structured response as a string."""
         products_str = []
         all_offers = {}
-        similar_product_ids = []
 
         for index, obj in enumerate(response.objects, 1):
             product_id = obj.properties.get("product_id", "Unknown")
@@ -169,7 +193,6 @@ class WeaviateHandler:
             product_str += f"Rating: {rating}\n"
             product_str += f"Image URL: {image_url}\n"
 
-            similar_product_ids.append(product_id)
 
             if offers:
                 for offer in offers:
@@ -217,8 +240,8 @@ class WeaviateHandler:
             result_str = "No matching items found.\n"
 
         logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
-        return result_str, similar_product_ids
-    
+        return result_str
+
     def process_and_store_products(self):
         """Reads product data, generates embeddings, and stores in Weaviate."""
         try:
