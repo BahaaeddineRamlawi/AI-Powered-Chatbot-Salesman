@@ -1,9 +1,9 @@
-from src.data_retriever import OffersDatabase
+from src.data_retriever import UserHistoryDatabase
 from src.utils import logging
 
 if __name__ == "__main__":
     try:
-        db = OffersDatabase()
+        db = UserHistoryDatabase()
         db.connect()
         logging.info("Database connected successfully.")
         
@@ -11,11 +11,11 @@ if __name__ == "__main__":
         logging.info("Table created successfully.")
         
         db.insert_data()
-        logging.info("Data inserted successfully.")
-
+        logging.info("User history data inserted successfully.")
+    
     except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
-        
+        logging.error(f"Error in database operations: {e}")
+    
     finally:
         db.close()
         logging.info("Database connection closed.")
