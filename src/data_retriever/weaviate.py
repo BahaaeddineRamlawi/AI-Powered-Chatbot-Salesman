@@ -5,7 +5,7 @@ import weaviate.classes as wvc
 from weaviate.classes.query import Filter
 
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning, message=".*'POLLER'.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from src.utils import logging, config
 from .offers import OffersDatabase
@@ -36,6 +36,7 @@ class WeaviateHandler:
             self.client = None
             self.collection = None
             # self.embedder.model = None
+            self.close()
 
 
     def create_schema(self):
@@ -94,7 +95,10 @@ class WeaviateHandler:
                         name="info_vector",
                         vector_index_config=Configure.VectorIndex.hnsw()
                     ),
-                ]
+                ],
+                inverted_index_config=Configure.inverted_index(
+                    index_null_state=True
+                )
             )
             logging.info("Schema created successfully.")
         except Exception as e:
@@ -269,10 +273,6 @@ class WeaviateHandler:
             raise
         logging.info(f"Collection '{self.collection_name}' loaded successfully.")
 
-        # if not self.collection or not self.embedder.model:
-        #     logging.error("Weaviate collection or model not initialized.")
-        #     return ["Error: Search service unavailable."]
-        
         try:
             response = self.collection.query.hybrid(
                 query=query,
