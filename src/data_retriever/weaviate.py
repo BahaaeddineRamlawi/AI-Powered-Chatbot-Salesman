@@ -4,6 +4,9 @@ from weaviate.classes.config import Configure
 import weaviate.classes as wvc
 from weaviate.classes.query import Filter
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, message=".*'POLLER'.*")
+
 from src.utils import logging, config
 from .offers import OffersDatabase
 from .embedder import ProductEmbedder
@@ -18,7 +21,7 @@ class WeaviateHandler:
             self.db_name = config["database"]["name"]
 
             self.db = OffersDatabase()
-            self.embedder = ProductEmbedder()
+            # self.embedder = ProductEmbedder()
 
             logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
@@ -27,18 +30,12 @@ class WeaviateHandler:
                 raise
             
             logging.info("Connected to Weaviate.")
-            self.collection = self.client.collections.get(self.collection_name)
-            if not self.collection:
-                logging.error(f"Collection '{self.collection_name}' not found.")
-                raise
-
-            logging.info(f"Collection '{self.collection_name}' loaded successfully.")
 
         except Exception as e:
             logging.error(f"Error initializing WeaviateSearch: {e}")
             self.client = None
             self.collection = None
-            self.embedder.model = None
+            # self.embedder.model = None
 
 
     def create_schema(self):
@@ -51,60 +48,54 @@ class WeaviateHandler:
                     wvc.config.Property(
                         name="product_id",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
                     ),
                     wvc.config.Property(
                         name="title",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
+                        vectorizer="text2vec-transformers",
+                    ),
+                    wvc.config.Property(
+                        name="description",
+                        data_type=wvc.config.DataType.TEXT,
+                        vectorizer="text2vec-transformers",
                     ),
                     wvc.config.Property(
                         name="link",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
                     ),
                     wvc.config.Property(
                         name="price",
                         data_type=wvc.config.DataType.NUMBER,
-                        vectorize_property_name=False
                     ),
                     wvc.config.Property(
                         name="categories",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
+                        vectorizer="text2vec-transformers",
                     ),
                     wvc.config.Property(
                         name="rating",
                         data_type=wvc.config.DataType.NUMBER,
-                        vectorize_property_name=False
                     ),
                     wvc.config.Property(
                         name="weight",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
                     ),
                     wvc.config.Property(
                         name="image",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
                     ),
                     wvc.config.Property(
                         name="stock_status",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorize_property_name=False
                     ),
                 ],
                 vectorizer_config=[
-                    Configure.NamedVectors.none(
+                    Configure.NamedVectors.text2vec_transformers(
                         name="info_vector",
                         vector_index_config=Configure.VectorIndex.hnsw()
                     ),
-                ],
-                inverted_index_config=Configure.inverted_index(
-                    index_null_state=True
-                )
+                ]
             )
-
             logging.info("Schema created successfully.")
         except Exception as e:
             logging.error(f"Error creating schema: {e}")
@@ -113,6 +104,9 @@ class WeaviateHandler:
 
     def insert_data(self, df):
         """Insert product data into Weaviate."""
+        self.collection = self.client.collections.get(self.collection_name)
+        logging.info(f"Collection '{self.collection_name}' loaded successfully.")
+
         try:
             logging.info("Inserting data into Weaviate...")
 
@@ -120,6 +114,7 @@ class WeaviateHandler:
                 product = {
                     "product_id": None if pd.isna(row["id"]) else str(row["id"]),
                     "title": None if pd.isna(row["title"]) else str(row["title"]),
+                    "description": None if pd.isna(row["description"]) else str(row["description"]),
                     "link": None if pd.isna(row["link"]) else str(row["link"]),
                     "price": None if pd.isna(row["price"]) else row["price"],
                     "categories": None if pd.isna(row["categories"]) else row["categories"],
@@ -128,9 +123,6 @@ class WeaviateHandler:
                     "image": None if pd.isna(row["image"]) else row["image"],
                     "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
                 }
-
-                product["info_vector"] = row["info_vector"].tolist() 
-
                 self.collection.data.insert(
                     properties=product,
                 )
@@ -146,26 +138,30 @@ class WeaviateHandler:
         Retrieve all items from the Weaviate collection.
         :return: List of all items in the database.
         """
+        self.collection = self.client.collections.get(self.collection_name)
+        if not self.collection:
+            logging.error(f"Collection '{self.collection_name}' not found.")
+            raise
+        logging.info(f"Collection '{self.collection_name}' loaded successfully.")
+
         try:
             logging.info("Fetching all items from Weaviate...")
 
-            response = self.collection.query.fetch_objects()
-            
-            # Extract objects safely
-            if response and response.objects:
-                items = [obj.properties for obj in response.objects]
-                logging.info(f"Retrieved {len(items)} items from Weaviate.")
-                return items
-            else:
-                logging.warning("No items found in Weaviate.")
-                return []
+            # Fetch all objects with a high limit (Weaviate caps responses)
+            response = self.collection.query.fetch_objects(limit=10000)  
+
+            # Extract object properties safely
+            items = [obj.properties for obj in response.objects] if response and response.objects else []
+
+            logging.info(f"Retrieved {len(items)} items from Weaviate.")
+            return items
 
         except Exception as e:
             logging.error(f"Error fetching all items: {e}")
             return []
 
 
-    def format_results(self, response):
+    def _format_results(self, response):
         """Format search results into a structured response as a string."""
         products_str = []
         all_offers = {}
@@ -175,6 +171,7 @@ class WeaviateHandler:
             title = obj.properties.get("title", "No Title")
             link = obj.properties.get("link", "No Link")
             categories = obj.properties.get("categories", "No Category")
+            description = obj.properties.get("description", "No Description")
             image_url = obj.properties.get("image", "none")
             price = obj.properties.get("price", "N/A")
             weight = obj.properties.get("weight", "N/A")
@@ -188,7 +185,8 @@ class WeaviateHandler:
             product_str += f"Title: {title}\n"
             product_str += f"Link: {link}\n"
             product_str += f"Categories: {categories}\n"
-            product_str += f"Price: {price}\n"
+            product_str += f"Description: {description}\n"
+            product_str += f"Price: ${price}\n"
             product_str += f"Weight: {weight}\n"
             product_str += f"Rating: {rating}\n"
             product_str += f"Image URL: {image_url}\n"
@@ -252,7 +250,7 @@ class WeaviateHandler:
                 logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")
                 raise
 
-            df = self.embedder.generate_embeddings(df)
+            # df = self.embedder.generate_embeddings(df)
             self.create_schema()
             self.insert_data(df)
         
@@ -265,27 +263,37 @@ class WeaviateHandler:
     
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
-        if not self.collection or not self.embedder.model:
-            logging.error("Weaviate collection or model not initialized.")
-            return ["Error: Search service unavailable."]
+        self.collection = self.client.collections.get(self.collection_name)
+        if not self.collection:
+            logging.error(f"Collection '{self.collection_name}' not found.")
+            raise
+        logging.info(f"Collection '{self.collection_name}' loaded successfully.")
+
+        # if not self.collection or not self.embedder.model:
+        #     logging.error("Weaviate collection or model not initialized.")
+        #     return ["Error: Search service unavailable."]
         
         try:
-            query_embedding = self.embedder.model.encode(query).tolist()
             response = self.collection.query.hybrid(
                 query=query,
-                vector=query_embedding,
                 alpha=alpha,
                 limit=limit,
                 target_vector="info_vector",
                 filters=filters
             )
-            return self.format_results(response)
+            print(self._format_results(response))
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
             return ["Error: Hybrid search failed."]
 
     def keyword_search(self, query, limit=3, filters=None):
         """Perform BM25 keyword search."""
+        self.collection = self.client.collections.get(self.collection_name)
+        if not self.collection:
+            logging.error(f"Collection '{self.collection_name}' not found.")
+            raise
+        logging.info(f"Collection '{self.collection_name}' loaded successfully.")
+
         if not self.collection:
             logging.error("Weaviate collection not initialized.")
             return ["Error: Search service unavailable."]
@@ -294,7 +302,7 @@ class WeaviateHandler:
             response = self.collection.query.bm25(
                 query=query, limit=limit, filters=filters
             )
-            return self.format_results(response)
+            return self._format_results(response)
         except Exception as e:
             logging.error(f"Keyword search failed: {e}")
             return ["Error: Keyword search failed."]
