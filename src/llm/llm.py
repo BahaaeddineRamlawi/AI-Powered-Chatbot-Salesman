@@ -4,12 +4,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
+import os
 
 from src.utils import logging, config
 
 class LLMHandler:
     def __init__(self):
         self.llm_provider = config["llm"]["provider"]
+        self.prompt_file_path = config["input_file"]["prompt_text_path"]
 
         self.all_knowledge = ""
         self.history_limit = 5
@@ -48,36 +50,19 @@ class LLMHandler:
             raise
 
     def _generate_prompt_template(self):
-        """ Returns the prompt template string. """
-        return """
-        ## Context
-        ### User History:
-        {history}
+        """Reads the prompt template from an external file with logging."""
+        if not os.path.exists(self.prompt_file_path):
+            logging.error(f"Prompt file {self.prompt_file_path} not found.")
+            raise FileNotFoundError(f"Prompt file {self.prompt_file_path} not found.")
 
-        ### User Query:
-        {user_query}
-
-        ### Knowledge:
-        {search_results}
-
-        ## Response Guidelines:
-
-        ### 1. Product Exists in Knowledge:
-        - If the product is found in "Knowledge", then answer based on "Knowledge".
-
-        ### 2. Product NOT in Knowledge:
-        - Respond with:
-        ```
-        Rifai.com specializes in premium nuts, chocolates, dried fruits, coffee, and gourmet gift boxes.
-        Unfortunately, we do not sell {user_query}.
-        ```
-        
-        ### 3. Other Chat:
-        - If the User greets (e.g., "Hello," "Hi," "Good morning", "How are you", ...), reply to him in a very briefly way in a half line and add that you will assist him as an assistant for Rifai.com.
-        - If the User is chatting, reply to him with one word and add that you will assist him as an assistant for Rifai.com.
-        
-        Now generate a concise, engaging, and context-aware response to help the customer.
-        """
+        try:
+            with open(self.prompt_file_path, "r", encoding="utf-8") as file:
+                prompt_template = file.read()
+                logging.info(f"Successfully loaded prompt template from {self.prompt_file_path}")
+                return prompt_template
+        except Exception as e:
+            logging.error(f"Error reading prompt template: {e}")
+            raise
 
     def stream(self,message):
         return self.llm.stream(message)

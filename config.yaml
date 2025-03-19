@@ -6,6 +6,7 @@ input_file:
   offers_data_path: "./assets/offers.csv"
   cleaned_products_data_path: "./assets/cleaned_products.csv"
   user_rating_datapath: "./assets/user_rating.csv"
+  prompt_text_path: "./assets/prompt_text.txt"
 
 output_file:
   cleaned_products_data_path: "./assets/cleaned_products.csv"
