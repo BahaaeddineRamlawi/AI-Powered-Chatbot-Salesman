@@ -12,9 +12,7 @@ class LLMHandler:
     def __init__(self):
         self.llm_provider = config["llm"]["provider"]
         self.prompt_file_path = config["input_file"]["prompt_text_path"]
-
-        self.all_knowledge = ""
-        self.history_limit = 5
+        
         try:
             logging.info(f"Initializing LLMHandler with provider {self.llm_provider}")
             llm_mapping = {
@@ -49,6 +47,7 @@ class LLMHandler:
             logging.error(f"Error initializing prompt template: {e}")
             raise
 
+
     def _generate_prompt_template(self):
         """Reads the prompt template from an external file with logging."""
         if not os.path.exists(self.prompt_file_path):
@@ -64,8 +63,10 @@ class LLMHandler:
             logging.error(f"Error reading prompt template: {e}")
             raise
 
+
     def stream(self,message):
         return self.llm.stream(message)
+
 
     def _init_openai(self):
         self.llm = ChatOpenAI(
@@ -73,6 +74,7 @@ class LLMHandler:
             temperature=config["llm"]["temperature"],
             model=config["openai"]["model"]
         )
+
 
     def _init_azure_openai(self):
         self.llm = AzureChatOpenAI(
@@ -84,12 +86,14 @@ class LLMHandler:
             max_retries=2
         )
     
+
     def _init_gemini(self):
         self.llm = ChatGoogleGenerativeAI(
             google_api_key=config["gemini"]["api_key"],
             temperature=config["llm"]["temperature"],
             model=config["gemini"]["model"]
         )
+
 
     def _init_mistral(self):
         self.llm = ChatMistralAI(
@@ -99,6 +103,7 @@ class LLMHandler:
             max_retries=2,
         )
     
+
     def _init_groq(self):
         self.llm = ChatGroq(
             model=self.llm_provider, 
@@ -111,16 +116,11 @@ class LLMHandler:
     def process_with_llm(self, user_query, search_results, history):
         try:
             logging.info(f"Processing query: {user_query}")
-            
-            formatted_history = "\n".join(
-                [f"Q: {user}\nA: {bot}" for user, bot in history[-self.history_limit:]]
-            )
-            formatted_history += f"\nQ: {user_query}"
 
             formatted_prompt = self.prompt_template.format(
                 user_query=user_query,
                 search_results=search_results,
-                history=formatted_history
+                history=history
             )
             
             ai_msg = self.llm.invoke(formatted_prompt)

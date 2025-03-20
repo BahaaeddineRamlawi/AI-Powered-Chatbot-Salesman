@@ -15,8 +15,7 @@ weaviate:
   collection_name: "Product"
 
 embedding:
-  model_name: "all-MiniLM-L6-v2"
-  model_type: "sentencetransformer"
+  model_type: "text2vec-transformers"
 
 llm:
   provider: "azure_openai" # openai - mistral - mixtral-8x7b-32768 - llama3-70b-8192 - gemma-7b-it - azure_openai

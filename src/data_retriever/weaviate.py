@@ -9,7 +9,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from src.utils import logging, config
 from .offers import OffersDatabase
-from .embedder import ProductEmbedder
 
 class WeaviateHandler:
     """Handles connection and data management in Weaviate."""
@@ -21,7 +20,6 @@ class WeaviateHandler:
             self.db_name = config["database"]["name"]
 
             self.db = OffersDatabase()
-            # self.embedder = ProductEmbedder()
 
             logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
@@ -35,12 +33,12 @@ class WeaviateHandler:
             logging.error(f"Error initializing WeaviateSearch: {e}")
             self.client = None
             self.collection = None
-            # self.embedder.model = None
             self.close()
 
 
     def create_schema(self):
         """Define and create the schema in Weaviate (v4 syntax)."""
+        embedding_model = config["embedding"]["model_type"]
         try:
             self.client.collections.delete(name=self.collection_name)
             self.client.collections.create(
@@ -53,12 +51,12 @@ class WeaviateHandler:
                     wvc.config.Property(
                         name="title",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorizer="text2vec-transformers",
+                        vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
                         name="description",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorizer="text2vec-transformers",
+                        vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
                         name="link",
@@ -71,7 +69,7 @@ class WeaviateHandler:
                     wvc.config.Property(
                         name="categories",
                         data_type=wvc.config.DataType.TEXT,
-                        vectorizer="text2vec-transformers",
+                        vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
                         name="rating",
@@ -94,7 +92,7 @@ class WeaviateHandler:
                     Configure.NamedVectors.text2vec_transformers(
                         name="info_vector",
                         vector_index_config=Configure.VectorIndex.hnsw()
-                    ),
+                    ) if embedding_model == "text2vec-transformers" else None,
                 ],
                 inverted_index_config=Configure.inverted_index(
                     index_null_state=True
@@ -151,10 +149,8 @@ class WeaviateHandler:
         try:
             logging.info("Fetching all items from Weaviate...")
 
-            # Fetch all objects with a high limit (Weaviate caps responses)
             response = self.collection.query.fetch_objects(limit=10000)  
 
-            # Extract object properties safely
             items = [obj.properties for obj in response.objects] if response and response.objects else []
 
             logging.info(f"Retrieved {len(items)} items from Weaviate.")
@@ -244,6 +240,7 @@ class WeaviateHandler:
         logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
         return result_str
 
+
     def process_and_store_products(self):
         """Reads product data, generates embeddings, and stores in Weaviate."""
         try:
@@ -254,7 +251,6 @@ class WeaviateHandler:
                 logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")
                 raise
 
-            # df = self.embedder.generate_embeddings(df)
             self.create_schema()
             self.insert_data(df)
         
@@ -281,10 +277,11 @@ class WeaviateHandler:
                 target_vector="info_vector",
                 filters=filters
             )
-            print(self._format_results(response))
+            return self._format_results(response)
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
             return ["Error: Hybrid search failed."]
+
 
     def keyword_search(self, query, limit=3, filters=None):
         """Perform BM25 keyword search."""
@@ -306,6 +303,7 @@ class WeaviateHandler:
         except Exception as e:
             logging.error(f"Keyword search failed: {e}")
             return ["Error: Keyword search failed."]
+
 
     def close(self):
         """Close Weaviate connection properly."""
