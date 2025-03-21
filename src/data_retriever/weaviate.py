@@ -1,17 +1,16 @@
-from typing import Any, Dict, List
 import pandas as pd
 import weaviate
 from weaviate.classes.config import Configure
 import weaviate.classes as wvc
 from weaviate.classes.query import Filter
-
-from flashrank import Ranker, RerankRequest
+from flashrank import Ranker
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from src.utils import logging, config
 from .offers import OffersDatabase
+from .reranker import RerankedResponse
 
 class WeaviateHandler:
     """Handles connection and data management in Weaviate."""
@@ -23,9 +22,8 @@ class WeaviateHandler:
             self.db_name = config["database"]["name"]
 
             self.db = OffersDatabase()
+            self.ranker = Ranker()
             
-            self.reranker = Ranker()
-
             logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
             if not self.client:
@@ -117,22 +115,25 @@ class WeaviateHandler:
         try:
             logging.info("Inserting data into Weaviate...")
 
-            for _, row in df.iterrows():
-                product = {
-                    "product_id": None if pd.isna(row["id"]) else str(row["id"]),
-                    "title": None if pd.isna(row["title"]) else str(row["title"]),
-                    "description": None if pd.isna(row["description"]) else str(row["description"]),
-                    "link": None if pd.isna(row["link"]) else str(row["link"]),
-                    "price": None if pd.isna(row["price"]) else row["price"],
-                    "categories": None if pd.isna(row["categories"]) else row["categories"],
-                    "rating": None if pd.isna(row["rating"]) else row["rating"],
-                    "weight": None if pd.isna(row["weight"]) else row["weight"],
-                    "image": None if pd.isna(row["image"]) else row["image"],
-                    "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
-                }
-                self.collection.data.insert(
-                    properties=product,
-                )
+            BATCH_SIZE = 100
+            for start in range(0, len(df), BATCH_SIZE):
+                batch = df.iloc[start:start + BATCH_SIZE]
+                for _, row in batch.iterrows():
+                    product = {
+                        "product_id": None if pd.isna(row["id"]) else str(row["id"]),
+                        "title": None if pd.isna(row["title"]) else str(row["title"]),
+                        "description": None if pd.isna(row["description"]) else str(row["description"]),
+                        "link": None if pd.isna(row["link"]) else str(row["link"]),
+                        "price": None if pd.isna(row["price"]) else row["price"],
+                        "categories": None if pd.isna(row["categories"]) else row["categories"],
+                        "rating": None if pd.isna(row["rating"]) else row["rating"],
+                        "weight": None if pd.isna(row["weight"]) else row["weight"],
+                        "image": None if pd.isna(row["image"]) else row["image"],
+                        "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
+                    }
+                    self.collection.data.insert(
+                        properties=product,
+                    )
 
             logging.info("Data insertion complete.")
         except Exception as e:
@@ -266,56 +267,6 @@ class WeaviateHandler:
             self.close()
 
 
-    def rerank_results(self, query: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Rerank search results using FlashRank
-        
-        :param query: Search query string
-        :param documents: List of document dictionaries to rerank
-        :return: Reranked list of documents
-        """
-        try:
-            rerank_input = RerankRequest(
-                query=query,
-                passages=[
-                    {
-                        "text": " ".join(filter(None, [
-                            doc.get('title', ''),
-                            doc.get('description', ''),
-                            doc.get('categories', '')
-                        ])).strip(),
-                        "id": doc.get('product_id', '')
-                    } for doc in documents
-                ]
-            )
-            
-            # Perform reranking
-            reranked_results = self.reranker.rerank(rerank_input)
-            
-            # Map reranked results back to original documents
-            reranked_docs = []
-            for ranked_result in reranked_results:
-                # Find the original document that matches this ranked result
-                matching_doc = next(
-                    (doc for doc in documents if 
-                     ranked_result.get('id') == doc.get('product_id')), 
-                    None
-                )
-                
-                if matching_doc:
-                    matching_doc['rerank_score'] = ranked_result.get('score', 0)
-                    reranked_docs.append(matching_doc)
-            
-            # If no matches found, fall back to original documents
-            if not reranked_docs:
-                reranked_docs = documents
-            return reranked_docs
-        
-        except Exception as e:
-            logging.error(f"Reranking failed: {e}")
-            return documents
-
-
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
         self.collection = self.client.collections.get(self.collection_name)
@@ -329,38 +280,19 @@ class WeaviateHandler:
             response = self.collection.query.hybrid(
                 query=query,
                 alpha=alpha,
-                # limit=limit,
+                limit=20,
                 target_vector="info_vector",
                 filters=filters
             )
             
-            # Convert response objects to dictionaries
-            documents = [obj.properties for obj in response.objects]
+            documents = [obj.properties for obj in response.objects]   
             
-            # Rerank results
-            reranked_docs = self.rerank_results(query, documents)
+            reranked = RerankedResponse()
+            reranked_docs = reranked.rerank_results(query, documents)
+            reranked.process_objects(reranked_docs, limit=limit)
+
             
-            # Create a new response-like object with reranked documents
-            class RerankedResponse:
-                def __init__(self, objects, limit=None):
-                    """
-                    Initialize RerankedResponse with optional limit on number of objects
-                    
-                    :param objects: List of document objects
-                    :param limit: Maximum number of objects to include (optional)
-                    """
-                    if limit is not None:
-                        # Slice the objects to the specified limit
-                        objects = objects[:limit]
-                    
-                    self.objects = [
-                        type('RerankedObject', (), {'properties': doc}) for doc in objects
-                    ]
-                    
-            reranked_response = RerankedResponse(reranked_docs, limit=limit)
-            
-            # Format and return results
-            return self._format_results(reranked_response)
+            return self._format_results(reranked)
             
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")

@@ -47,21 +47,28 @@ class QueryFilterExtractor:
 
         For each filter, provide the following keys:
         - "path": The path of the field (e.g., "price", "categories", "rating", "features")
-        - "operator": The type of comparison (e.g., "LessThan", "GreaterThan", "Equal")
-        - "valueNumber" or "valueString": The value to compare against (e.g., 50 for price, "electronics" for category, "gluten-free" for features)
+        - "operator": The type of comparison (e.g., "LessThan", "GreaterThan", "Equal", "NotEqual")
+        - "valueNumber" or "valueString": The value to compare against (e.g., 50 for price, "Electronics" for category, "gluten-free" for features)
 
-        The following is the user query:
+        **Categories**: 
+        - All Fruits, Chocolate, Coffee, Coffee Capsules, Confectionery, Dried Fruits, Freshly Pressed Nut Butters, Fruit Paste, Fruits & Nuts Mixes, Gifts, Healthy Mixes & Dried Fruits, Holiday Selection, Jars, Mixed Nuts, Nut Bars, Nut Butters, Nut Spreads & Bars, Nuts & Kernels, Nuts & Seeds, Nuts Dragées, Oriental Sweets, Prepacks, Protein, Sugar-Free Nut Bars, Sugared Nuts, Zaatar.
+
+        **Features**:
+        - Words such as "cheap", "gluten-free", "sugar-free", "organic", "vegan", "high-protein", etc.
+        
         {query}
 
         Based on this query, please provide the filters in the following JSON format:
 
         [
-            {{  "path": "categories", "operator": "Equal", "valueString": "electronics" }},
+            {{  "path": "categories", "operator": "NotEqual", "valueString": "Nuts" }},
             {{  "path": "rating", "operator": "GreaterThan", "valueNumber": 4 }},
             {{  "path": "features", "valueString": "gluten-free" }}
         ]
 
-        If no filter is applicable, return an empty list. Include filters only when mentioned in the query.
+        - If a filter can be placed in both the "features" and "categories", include it in both fields. However, the "features" filter should not contain an operator.
+        - If no applicable filters are found in the query, return an empty list without explanation.
+        - Only include filters that are directly mentioned or implied in the query.
         """
         
         self.prompt = PromptTemplate(input_variables=["query"], template=self.prompt_template)
