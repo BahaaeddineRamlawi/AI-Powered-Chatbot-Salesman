@@ -1,8 +1,15 @@
+from typing import Any, Dict, List
 import pandas as pd
 import weaviate
 from weaviate.classes.config import Configure
 import weaviate.classes as wvc
 from weaviate.classes.query import Filter
+# from langchain_weaviate import WeaviateVectorStore
+# from weaviate.classes.query import Rerank, MetadataQuery
+# from langchain.retrievers import ContextualCompressionRetriever
+# from langchain.retrievers.document_compressors import FlashrankRerank
+
+from flashrank import Ranker, RerankRequest
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -20,6 +27,9 @@ class WeaviateHandler:
             self.db_name = config["database"]["name"]
 
             self.db = OffersDatabase()
+            
+            self.reranker = Ranker()
+            # self.vector_store = None
 
             logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
@@ -33,6 +43,7 @@ class WeaviateHandler:
             logging.error(f"Error initializing WeaviateSearch: {e}")
             self.client = None
             self.collection = None
+            # self.vector_store = None
             self.close()
 
 
@@ -133,6 +144,17 @@ class WeaviateHandler:
         except Exception as e:
             logging.error(f"Error inserting data: {e}")
             raise
+        
+    def convert_db(self):
+        embedding_model = config["embedding"]["model_type"]
+        db = WeaviateVectorStore(
+            client=self.client,
+            index_name=self.collection_name,
+            text_key="description",  # Use the appropriate text field
+            embedding=embedding_model,
+        )
+        self.vector_store = db
+        return
     
 
     def get_all_items(self):
@@ -253,6 +275,7 @@ class WeaviateHandler:
 
             self.create_schema()
             self.insert_data(df)
+            # self.convert_db()
         
         except Exception as main_error:
             logging.critical(f"Critical Error: {main_error}")
@@ -260,10 +283,85 @@ class WeaviateHandler:
         finally:
             self.close()
 
-    
+
+    def rerank_results(self, query: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Rerank search results using FlashRank
+        
+        :param query: Search query string
+        :param documents: List of document dictionaries to rerank
+        :return: Reranked list of documents
+        """
+        try:
+            logging.info(f"44444444444----START-----44444444444")
+            # Prepare documents for reranking
+            # rerank_input = [
+            #     {
+            #         "query": query,
+            #         "passage": doc.get('title', '') + ' ' + doc.get('description', '')
+            #     } for doc in documents
+            # ]
+            
+            # rerank_input = RerankRequest(query, documents)
+            
+            rerank_input = RerankRequest(
+                query=query,
+                passages=[
+                    {
+                        "text": " ".join(filter(None, [
+                            doc.get('title', ''),
+                            doc.get('description', ''),
+                            doc.get('categories', '')
+                        ])).strip(),
+                        "id": doc.get('product_id', '')
+                    } for doc in documents
+                ]
+            )
+            
+            logging.info(f"44444444444----FINISH-----44444444444")
+            
+            
+            # Perform reranking
+            logging.info(f"55555555555----START-----55555555555")
+            reranked_results = self.reranker.rerank(rerank_input)
+            logging.info(f"55555555555----FINISH-----55555555555")
+            
+            # Map reranked results back to original documents
+            logging.info(f"66666666666----START-----66666666666")
+            reranked_docs = []
+            for ranked_result in reranked_results:
+                # Find the original document that matches this ranked result
+                matching_doc = next(
+                    (doc for doc in documents if 
+                     ranked_result.get('id') == doc.get('product_id')), 
+                    None
+                )
+                
+                if matching_doc:
+                    matching_doc['rerank_score'] = ranked_result.get('score', 0)
+                    reranked_docs.append(matching_doc)
+            
+            logging.info(f"66666666666----START-----66666666666")
+            
+            
+            # If no matches found, fall back to original documents
+            if not reranked_docs:
+                reranked_docs = documents
+            print(reranked_results)
+            return reranked_docs
+        
+        except Exception as e:
+            logging.error(f"Reranking failed: {e}")
+            return documents
+
+
     def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
         self.collection = self.client.collections.get(self.collection_name)
+        
+        # if not self.vector_store:
+        #     self.convert_db()
+        
         if not self.collection:
             logging.error(f"Collection '{self.collection_name}' not found.")
             raise
@@ -273,11 +371,60 @@ class WeaviateHandler:
             response = self.collection.query.hybrid(
                 query=query,
                 alpha=alpha,
-                limit=limit,
+                # limit=limit,
                 target_vector="info_vector",
                 filters=filters
             )
-            return self._format_results(response)
+            
+            logging.info(f"111111111111----START-----11111111111")
+            # Convert response objects to dictionaries
+            documents = [obj.properties for obj in response.objects]
+            logging.info(f"111111111111----FINISH-----11111111111")
+            
+            # Rerank results
+            logging.info(f"22222222222----START-----22222222222")
+            reranked_docs = self.rerank_results(query, documents)
+            logging.info(f"22222222222----FINISH-----22222222222")
+            
+            # Create a new response-like object with reranked documents
+            logging.info(f"33333333333----START-----33333333333")
+            class RerankedResponse:
+                def __init__(self, objects, limit=None):
+                    """
+                    Initialize RerankedResponse with optional limit on number of objects
+                    
+                    :param objects: List of document objects
+                    :param limit: Maximum number of objects to include (optional)
+                    """
+                    if limit is not None:
+                        # Slice the objects to the specified limit
+                        objects = objects[:limit]
+                    
+                    self.objects = [
+                        type('RerankedObject', (), {'properties': doc}) for doc in objects
+                    ]
+                    
+            logging.info(f"33333333333----START-----33333333333")
+            
+            logging.info(f"---------------STAR RERANKING----------------.")
+            reranked_response = RerankedResponse(reranked_docs, limit=limit)
+            logging.info(f"--------------FINISH RERANKING---------------.")
+            
+            # Format and return results
+            return self._format_results(reranked_response)
+            
+            
+            
+            # retriever =self.vector_store.as_retriever()
+            # compressor = FlashrankRerank()  #or compressor = CohereRerank(model="rerank-english-v3.0")
+            # compression_retriever = ContextualCompressionRetriever(
+            #     base_compressor=compressor, base_retriever=retriever
+            # )
+            
+            # compressed_docs = compression_retriever.invoke(query)
+            # print(compressed_docs)
+           
+            # return self._format_results(response)
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
             return ["Error: Hybrid search failed."]

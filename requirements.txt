@@ -6,3 +6,4 @@ mistralai==1.5.0
 scikit-surprise==1.1.4
 langchain-google-genai==2.1.0
 langchain-groq==0.2.5
+FlashRank==0.2.10
