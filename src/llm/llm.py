@@ -11,7 +11,7 @@ from src.utils import logging, config
 class LLMHandler:
     def __init__(self):
         self.llm_provider = config["llm"]["provider"]
-        self.prompt_file_path = config["input_file"]["prompt_text_path"]
+        self.prompt_file_path = config["input_file"]["main_prompt_template_path"]
         
         try:
             logging.info(f"Initializing LLMHandler with provider {self.llm_provider}")
@@ -49,7 +49,7 @@ class LLMHandler:
 
 
     def _generate_prompt_template(self):
-        """Reads the prompt template from an external file with logging."""
+        """Reads the prompt template from an external file."""
         if not os.path.exists(self.prompt_file_path):
             logging.error(f"Prompt file {self.prompt_file_path} not found.")
             raise FileNotFoundError(f"Prompt file {self.prompt_file_path} not found.")

@@ -7,17 +7,19 @@ from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from weaviate.classes.query import Filter
+import os
 
 from src.utils import logging, config
 
 
-class QueryFilterExtractor:
+class QueryInfoExtractor:
     """Class to extract filters from product search queries using LLM."""
     
     def __init__(self):
         """Initialize the filter extractor with necessary configurations."""
         # self.llm_provider = config["llm"]["provider"]
         self.llm_provider = "mistral"
+        self.prompt_file_path = config["input_file"]["filter_and_intent_prompt_template_path"]
         try:
             logging.info(f"Initializing LLMHandler with provider {self.llm_provider}")
             llm_mapping = {
@@ -41,38 +43,28 @@ class QueryFilterExtractor:
             logging.error(f"Error initializing LLMProvider: {e}")
             raise
 
-        self.prompt_template = """
-        You are a filtering assistant for a search query. Your task is to extract filters from the following query.
-        The filters may include price ranges, categories, ratings, and other relevant properties for product searches. Additionally, extract features such as "cheap", "gluten-free", etc.
-
-        For each filter, provide the following keys:
-        - "path": The path of the field (e.g., "price", "categories", "rating", "features")
-        - "operator": The type of comparison (e.g., "LessThan", "GreaterThan", "Equal", "NotEqual")
-        - "valueNumber" or "valueString": The value to compare against (e.g., 50 for price, "Electronics" for category, "gluten-free" for features)
-
-        **Categories**: 
-        - All Fruits, Chocolate, Coffee, Coffee Capsules, Confectionery, Dried Fruits, Freshly Pressed Nut Butters, Fruit Paste, Fruits & Nuts Mixes, Gifts, Healthy Mixes & Dried Fruits, Holiday Selection, Jars, Mixed Nuts, Nut Bars, Nut Butters, Nut Spreads & Bars, Nuts & Kernels, Nuts & Seeds, Nuts Dragées, Oriental Sweets, Prepacks, Protein, Sugar-Free Nut Bars, Sugared Nuts, Zaatar.
-
-        **Features**:
-        - Words such as "cheap", "gluten-free", "sugar-free", "organic", "vegan", "high-protein", etc.
+        self.prompt_template = self.load_template_from_file()
+        if self.prompt_template:
+            logging.info("Template loaded successfully")
         
-        {query}
-
-        Based on this query, please provide the filters in the following JSON format:
-
-        [
-            {{  "path": "categories", "operator": "NotEqual", "valueString": "Nuts" }},
-            {{  "path": "rating", "operator": "GreaterThan", "valueNumber": 4 }},
-            {{  "path": "features", "valueString": "gluten-free" }}
-        ]
-
-        - If a filter can be placed in both the "features" and "categories", include it in both fields. However, the "features" filter should not contain an operator.
-        - If no applicable filters are found in the query, return an empty list without explanation.
-        - Only include filters that are directly mentioned or implied in the query.
-        """
         
         self.prompt = PromptTemplate(input_variables=["query"], template=self.prompt_template)
         self.llm_chain = LLMChain(prompt=self.prompt, llm=self.llm)
+
+
+    def load_template_from_file(self):
+        if not os.path.exists(self.prompt_file_path):
+            logging.error(f"Prompt file {self.prompt_file_path} not found.")
+            raise FileNotFoundError(f"Prompt file {self.prompt_file_path} not found.")
+        
+        try:
+            with open(self.prompt_file_path, "r") as file:
+                template = file.read()
+            logging.info(f"Successfully loaded prompt template from {self.prompt_file_path}")
+            return template
+        except Exception as e:
+            logging.error(f"Error loading template from file: {e}")
+            return None
     
     
     def _init_openai(self):
@@ -140,29 +132,55 @@ class QueryFilterExtractor:
 
                 filters &= filter_condition
 
-        logging.info(f"Generated Filter: {filters.__dict__ if hasattr(filters, '__dict__') else str(filters)}")
+        logging.info("Filter Generated Successfully")
         return filters
+
+
+    def _extract_intent(self, response):
+        """Extracts the intent from a given response."""
+        intent = "unknown"
+        try:
+            for item in response:
+                path = item.get("path")
+                if path and path == "intent":
+                    intent = item.get("valueString", "unknown")
+                    break
+
+            logging.info(f"Extracted intent: {intent}")
+            return intent
+
+        except json.JSONDecodeError:
+            logging.error("Invalid JSON format.")
+            return "unknown"
     
 
-    def extract_filters_from_query(self, query):
+    def extract_info_from_query(self, query):
         """Extract filters from the given query."""
+        filters = Filter.by_property("stock_status").equal("In stock")
+        intent = "unknown"
         try:
             logging.info(f"Extracting filters for query: {query}")
             
             filters_str = self.llm_chain.run(query=query)
-            logging.info(f"Response returned from LLM.")
+            logging.info("Response returned from LLM.")
 
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
+            logging.info("Cleaned LLM response")
+
             # print(f"Query: {query}")
             # print(f"Response: {cleaned_string}")
-            valid_filters = json.loads(cleaned_string)
-            
-            return self._convert_to_weaviate_filter(valid_filters)
+
+            valid_json = json.loads(cleaned_string)
+            filters = self._convert_to_weaviate_filter(valid_json)
+            intent = self._extract_intent(valid_json)
+
+            logging.info("Filters and Intent extracted")
+            return filters, intent
 
         except Exception as e:
             logging.error(f"Error extracting filters: {e}")
-            return Filter.by_property("stock_status").equal("In stock")
+            return filters, intent
 
         except json.JSONDecodeError as e:
             logging.error(f"Error decoding JSON response: {e}")
-            return Filter.by_property("stock_status").equal("In stock")
+            return filters, intent

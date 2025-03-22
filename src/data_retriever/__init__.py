@@ -1,10 +1,9 @@
 from .data_cleaner import ProductDataCleaner
 from .weaviate import WeaviateHandler
-from .gradio_search import GradioSearchApp
 from .offers import OffersDatabase
 from .recommendation import RecommendationHandler
 from .history import UserHistoryDatabase
-from .filter_extractor import QueryFilterExtractor
+from .info_extractor import QueryInfoExtractor
 from .reranker import RerankedResponse
 
-__all__ = ["ProductDataCleaner", "WeaviateHandler", "GradioSearchApp", "OffersDatabase", "RecommendationHandler", "UserHistoryDatabase", "QueryFilterExtractor", "RerankedResponse"]
+__all__ = ["ProductDataCleaner", "WeaviateHandler", "OffersDatabase", "RecommendationHandler", "UserHistoryDatabase", "QueryInfoExtractor", "RerankedResponse"]

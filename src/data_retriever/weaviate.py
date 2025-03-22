@@ -25,7 +25,7 @@ class WeaviateHandler:
             self.ranker = Ranker()
             
             logging.info("Connecting to Weaviate...")
-            self.client = weaviate.connect_to_local()
+            self.client = None
             if not self.client:
                 logging.error("Failed to connect to Weaviate.")
                 raise
@@ -36,7 +36,12 @@ class WeaviateHandler:
             logging.error(f"Error initializing WeaviateSearch: {e}")
             self.client = None
             self.collection = None
-            self.close()
+            if self.client:
+                self.client.close()
+    
+
+    def connect(self):
+        self.client = weaviate.connect_to_local()
 
 
     def create_schema(self):
@@ -171,6 +176,9 @@ class WeaviateHandler:
         """Format search results into a structured response as a string."""
         products_str = []
         all_offers = {}
+        product_ids_to_fetch = []
+        offers_by_product = {}
+        offers_str = ""
 
         for index, obj in enumerate(response.objects, 1):
             product_id = obj.properties.get("product_id", "Unknown")
@@ -183,9 +191,7 @@ class WeaviateHandler:
             weight = obj.properties.get("weight", "N/A")
             rating = obj.properties.get("rating", "N/A")
 
-            self.db.connect()
-            offers = self.db.find_offers_by_product(product_id)
-            self.db.close()
+            product_ids_to_fetch.append(product_id)
 
             product_str = f"Product {index} - ID: {product_id}\n"
             product_str += f"Title: {title}\n"
@@ -197,36 +203,30 @@ class WeaviateHandler:
             product_str += f"Rating: {rating}\n"
             product_str += f"Image URL: {image_url}\n"
 
-
-            if offers:
-                for offer in offers:
-                    offer_id, offer_name, offer_price, _, _, offer_desc, _, _, _, _, product_list_json = offer
-                    product_ids = eval(product_list_json)
-
-                    if offer_id not in all_offers:
-                        all_offers[offer_id] = {
-                            "name": offer_name,
-                            "price": offer_price,
-                            "description": offer_desc,
-                            "products": []
-                        }
-
-                    for pid in product_ids:
-                        product_response = self.collection.query.fetch_objects(
-                            filters=Filter.by_property("product_id").equal(pid)
-                        )
-                        if product_response.objects:
-                            product_obj = product_response.objects[0].properties
-                            product_image = product_obj.get("image", "none")
-                            product_title = product_obj.get("title", "No Title")
-                            all_offers[offer_id]["products"].append({
-                                "image": product_image,
-                                "title": product_title
-                            })
             
             products_str.append(product_str)
+        
+        self.db.connect()
+        
+        
+        for product_id in product_ids_to_fetch:
+            offers = self.db.find_offers_by_product(product_id)
+            if offers:
+                offers_by_product[product_id] = offers
+        
+        self.db.close()
 
-        offers_str = ""
+        for product_id, offers in offers_by_product.items():
+            for offer in offers:
+                offer_id, offer_name, offer_price, _, _, offer_desc, _, _, _, _, product_list_json = offer
+                try:
+                    product_ids = eval(product_list_json)
+                except Exception as e:
+                    logging.error(f"Error processing product_list_json for offer_id {offer_id}: {e}")
+                    continue
+
+                all_offers = self.add_offer_to_all_offers(offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers)
+
         if all_offers:
             offers_str = "Offers:\n"
             for offer in all_offers.values():
@@ -245,6 +245,34 @@ class WeaviateHandler:
 
         logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
         return result_str
+    
+    
+    def add_offer_to_all_offers(self, offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers):
+        """Adds the offer and its associated products to the all_offers dictionary."""
+        
+        if offer_id not in all_offers:
+            all_offers[offer_id] = {
+                "name": offer_name,
+                "price": offer_price,
+                "description": offer_desc,
+                "products": []
+            }
+
+        for pid in product_ids:
+            product_response = self.collection.query.fetch_objects(
+                filters=Filter.by_property("product_id").equal(pid)
+            )
+            if product_response.objects:
+                product_obj = product_response.objects[0].properties
+                product_image = product_obj.get("image", "none")
+                product_title = product_obj.get("title", "No Title")
+
+                all_offers[offer_id]["products"].append({
+                    "image": product_image,
+                    "title": product_title
+                })
+
+        return all_offers
 
 
     def process_and_store_products(self):
@@ -324,7 +352,8 @@ class WeaviateHandler:
     def close(self):
         """Close Weaviate connection properly."""
         try:
-            self.client.close()
+            if self.client:
+                self.client.close()
             logging.info("Weaviate connection closed.")
         except Exception as e:
             logging.error(f"Error closing Weaviate connection: {e}")
