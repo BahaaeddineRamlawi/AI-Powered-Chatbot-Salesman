@@ -18,30 +18,39 @@ class WeaviateHandler:
     def __init__(self):
         """Initialize Weaviate connection, model, and SQLite database."""
         try:
+            logging.info("Initializing WeaviateSearch...")
+
             self.collection_name = config["weaviate"]["collection_name"]
             self.db_name = config["database"]["name"]
 
+            logging.info(f"Using collection: {self.collection_name} and database: {self.db_name}")
+
             self.db = OffersDatabase()
+            logging.info("Database connection established.")
+
             self.ranker = Ranker()
-            
+            logging.info("Ranker initialized.")
+
             logging.info("Connecting to Weaviate...")
-            self.client = None
+            self.client = weaviate.connect_to_local()
+
             if not self.client:
-                logging.error("Failed to connect to Weaviate.")
-                raise
+                logging.error("Failed to connect to Weaviate. Client is None.")
+                raise Exception("Weaviate connection failed. Client is None.")
             
-            logging.info("Connected to Weaviate.")
+            logging.info("Successfully connected to Weaviate.")
 
         except Exception as e:
-            logging.error(f"Error initializing WeaviateSearch: {e}")
+            logging.error(f"Error during initialization of WeaviateSearch: {e}")
             self.client = None
             self.collection = None
-            if self.client:
-                self.client.close()
-    
+            logging.info("Cleaning up resources...")
 
-    def connect(self):
-        self.client = weaviate.connect_to_local()
+
+            if self.client:
+                logging.info("Closing Weaviate client.")
+                self.client.close()
+            logging.info("WeaviateSearch initialization failed.")
 
 
     def create_schema(self):
@@ -193,7 +202,7 @@ class WeaviateHandler:
 
             product_ids_to_fetch.append(product_id)
 
-            product_str = f"Product {index} - ID: {product_id}\n"
+            product_str = f"Product {index}\n"
             product_str += f"Title: {title}\n"
             product_str += f"Link: {link}\n"
             product_str += f"Categories: {categories}\n"

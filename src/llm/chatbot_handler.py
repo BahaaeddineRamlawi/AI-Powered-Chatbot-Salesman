@@ -8,7 +8,6 @@ class ChatbotHandler:
     def __init__(self):
         try:
             self.search_engine = WeaviateHandler()
-            self.search_engine.connect()
 
             # self.recommendation_engine = RecommendationHandler()
 
@@ -41,8 +40,8 @@ class ChatbotHandler:
             formatted_history = ""
             for i in range(0, len(history) - 1, 2):
                 if history[i]["role"] == "user" and history[i + 1]["role"] == "assistant":
-                    formatted_history += f"Q: {history[i]['content']}\nA: {history[i + 1]['content']}\n"
-            formatted_history += f"\nQ: {query}"
+                    formatted_history += f"Human: {history[i]['content']}\nMe: {history[i + 1]['content']}\n"
+            formatted_history += f"\nHuman: {query}"
 
             if query is not None:
                 partial_message = ""
