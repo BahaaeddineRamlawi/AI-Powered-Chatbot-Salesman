@@ -19,7 +19,7 @@ class QueryInfoExtractor:
         """Initialize the filter extractor with necessary configurations."""
         # self.llm_provider = config["llm"]["provider"]
         self.llm_provider = "mistral"
-        self.prompt_file_path = config["input_file"]["filter_and_intent_prompt_template_path"]
+        self.prompt_file_path = config["prompt_templates"]["filter_and_intent_prompt_template_path"]
         try:
             logging.info(f"Initializing LLMHandler with provider {self.llm_provider}")
             llm_mapping = {
@@ -125,11 +125,15 @@ class QueryInfoExtractor:
             path = item.get("path")
             operator = item.get("operator")
             value_number = item.get("valueNumber")
+            value_string = item.get("valueString")
 
             if path in ["price", "rating"] and operator in operator_map:
                 weaviate_operator = operator_map[operator]
                 filter_condition = getattr(Filter.by_property(path), weaviate_operator)(float(value_number))
-
+                filters &= filter_condition
+            elif path == "categories" and operator in operator_map:
+                weaviate_operator = operator_map[operator]
+                filter_condition = getattr(Filter.by_property("categories"), weaviate_operator)(value_string)
                 filters &= filter_condition
 
         logging.info("Filter Generated Successfully")
@@ -167,8 +171,8 @@ class QueryInfoExtractor:
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
             logging.info("Cleaned LLM response")
 
-            # print(f"Query: {query}")
-            # print(f"Response: {cleaned_string}")
+            print(f"Query: {query}")
+            print(f"Response: {cleaned_string}")
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)

@@ -317,45 +317,26 @@ class WeaviateHandler:
             response = self.collection.query.hybrid(
                 query=query,
                 alpha=alpha,
-                limit=20,
                 target_vector="info_vector",
                 filters=filters
             )
             
-            documents = [obj.properties for obj in response.objects]   
+            documents = [obj.properties for obj in response.objects]
+
+            if not documents:
+                logging.info("Hybrid search returned no results. Skipping reranking.")
+                return {"message": "No relevant results found."}
             
             reranked = RerankedResponse()
             reranked_docs = reranked.rerank_results(query, documents)
             reranked.process_objects(reranked_docs, limit=limit)
-
             
             return self._format_results(reranked)
             
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
-            return ["Error: Hybrid search failed."]
-
-
-    def keyword_search(self, query, limit=3, filters=None):
-        """Perform BM25 keyword search."""
-        self.collection = self.client.collections.get(self.collection_name)
-        if not self.collection:
-            logging.error(f"Collection '{self.collection_name}' not found.")
             raise
-        logging.info(f"Collection '{self.collection_name}' loaded successfully.")
 
-        if not self.collection:
-            logging.error("Weaviate collection not initialized.")
-            return ["Error: Search service unavailable."]
-        
-        try:
-            response = self.collection.query.bm25(
-                query=query, limit=limit, filters=filters
-            )
-            return self._format_results(response)
-        except Exception as e:
-            logging.error(f"Keyword search failed: {e}")
-            return ["Error: Keyword search failed."]
 
 
     def close(self):

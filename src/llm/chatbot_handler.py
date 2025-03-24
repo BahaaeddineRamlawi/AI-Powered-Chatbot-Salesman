@@ -1,7 +1,7 @@
 import gradio as gr
 
 from .llm import LLMHandler
-from src.data_retriever import WeaviateHandler, RecommendationHandler, QueryInfoExtractor
+from src.data_retriever import WeaviateHandler, RecommendationHandler, QueryInfoExtractor, OffersDatabase
 from src.utils import logging
 
 class ChatbotHandler:
@@ -13,6 +13,7 @@ class ChatbotHandler:
 
             self.llmhandler = LLMHandler()
             self.filter_extractor = QueryInfoExtractor()
+            self.offer_db = OffersDatabase()
             self.history_limit = 5
 
             # self.recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=2001)
@@ -27,13 +28,13 @@ class ChatbotHandler:
             raise
 
 
-    def stream_response(self, query, history):
+    def stream_response(self, query, history, intent):
         """
         Handle streaming responses to the chat interface.
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
-            knowledge = self._get_weaviate_data(query=query, history=history)
+            knowledge, intent, template = self._get_weaviate_data(query=query, history=history)
             logging.info(f"Received query: {query}")
             # print(self.recommendation_str)
             
@@ -47,7 +48,7 @@ class ChatbotHandler:
                 partial_message = ""
 
                 rag_prompt = self.llmhandler.process_with_llm(
-                    query, knowledge, formatted_history
+                    query, knowledge, formatted_history, intent, template
                 )
 
                 for response in self.llmhandler.stream(rag_prompt):
@@ -61,12 +62,14 @@ class ChatbotHandler:
     def _get_weaviate_data(self, query, history):
         """Retrieve data from Weaviate based on query and intent, considering user history."""
         max_history_check = 3 
+        knowledge = ""
         combined_query = query
         filters, intent = self.filter_extractor.extract_info_from_query(query)
         final_combined_query = query
-
-        if intent == "ask_for_details_without_product":
-            logging.info("Intent is 'ask_for_details_without_product'. Combining with previous queries.")
+        if intent == "greeting":
+            return "", intent, "greeting"
+        elif intent == "ask_without_product":
+            logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
 
@@ -81,15 +84,19 @@ class ChatbotHandler:
                 _, combined_intent = self.filter_extractor.extract_info_from_query(combined_query)
                 logging.info(f"After appending, combined query: {combined_query} | {combined_intent}")
                
-                if combined_intent != "ask_for_details_without_product":
+                if combined_intent != "ask_without_product":
                     break
 
             final_combined_query = ", ".join(reversed(combined_queries))
             logging.info(f"Final combined query: {final_combined_query}")
+        elif intent == "ask_for_offers":
+            logging.info("Intent is 'ask_for_offers'")
+            knowledge =  self.offer_db.get_offers()
+            return knowledge, intent, "default"
+
 
         knowledge = self.search_engine.hybrid_search(query=final_combined_query, filters=filters)
-
-        return knowledge
+        return knowledge, intent, "default"
 
 
     def launch_chatbot(self):

@@ -6,8 +6,11 @@ input_file:
   offers_data_path: "./assets/offers.csv"
   cleaned_products_data_path: "./assets/cleaned_products.csv"
   user_rating_datapath: "./assets/user_rating.csv"
+
+prompt_templates:
   main_prompt_template_path: "./assets/main_prompt_template.txt"
   filter_and_intent_prompt_template_path: "./assets/filter_and_intent_prompt_template.txt"
+  greeting_prompt_template_path: "./assets/greeting_template.txt"
 
 output_file:
   cleaned_products_data_path: "./assets/cleaned_products.csv"
@@ -50,3 +53,6 @@ database:
 recommendation_system:
   alpha: 0.7
   n: 5
+
+store:
+  name: "Rifai.com"

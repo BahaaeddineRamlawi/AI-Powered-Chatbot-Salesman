@@ -11,54 +11,54 @@ from src.utils import logging, config
 class LLMHandler:
     def __init__(self):
         self.llm_provider = config["llm"]["provider"]
-        self.prompt_file_path = config["input_file"]["main_prompt_template_path"]
+        self.prompt_files = {
+            "default": config["prompt_templates"]["main_prompt_template_path"],
+            "greeting": config["prompt_templates"]["greeting_prompt_template_path"],
+        }
         
-        try:
-            logging.info(f"Initializing LLMHandler with provider {self.llm_provider}")
-            llm_mapping = {
-                "openai": self._init_openai,
-                "azure_openai": self._init_azure_openai,
-                "gemini": self._init_gemini ,
-                "mistral": self._init_mistral,
-                "llama3-70b-8192": self._init_groq,
-                "mixtral-8x7b-32768": self._init_groq,
-                "gemma-7b-it": self._init_groq,
-            }
+        self._initialize_llm()
+        
+        logging.info(f"LLMProvider {self.llm_provider} initialized successfully")
 
-            if self.llm_provider in llm_mapping:
-                llm_mapping[self.llm_provider]()
-            else:
-                raise ValueError(f"Invalid LLM provider: {self.llm_provider}")
+    def _initialize_llm(self):
+        """Initializes the correct LLM based on provider"""
+        llm_mapping = {
+            "openai": self._init_openai,
+            "azure_openai": self._init_azure_openai,
+            "gemini": self._init_gemini,
+            "mistral": self._init_mistral,
+            "llama3-70b-8192": self._init_groq,
+            "mixtral-8x7b-32768": self._init_groq,
+            "gemma-7b-it": self._init_groq,
+        }
 
-            logging.info(f"LLMProvider {self.llm_provider} initialized successfully")
-
-        except Exception as e:
-            logging.error(f"Error initializing LLMProvider: {e}")
-            raise
-
-        try:
-            self.prompt_template = PromptTemplate(
-                input_variables=["user_query", "search_results", "history"],
-                template=self._generate_prompt_template()
-            )
-
-            logging.info("Prompt template initialized successfully")
-        except Exception as e:
-            logging.error(f"Error initializing prompt template: {e}")
-            raise
+        if self.llm_provider in llm_mapping:
+            llm_mapping[self.llm_provider]()
+        else:
+            raise ValueError(f"Invalid LLM provider: {self.llm_provider}")
 
 
-    def _generate_prompt_template(self):
-        """Reads the prompt template from an external file."""
-        if not os.path.exists(self.prompt_file_path):
-            logging.error(f"Prompt file {self.prompt_file_path} not found.")
-            raise FileNotFoundError(f"Prompt file {self.prompt_file_path} not found.")
+    def _load_prompt_template(self, template_name):
+        """Loads a prompt template and wraps it with PromptTemplate"""
+        if template_name not in self.prompt_files:
+            raise ValueError(f"Invalid template name: {template_name}")
+
+        prompt_path = self.prompt_files[template_name]
+
+        if not os.path.exists(prompt_path):
+            logging.error(f"Prompt file {prompt_path} not found.")
+            raise FileNotFoundError(f"Prompt file {prompt_path} not found.")
 
         try:
-            with open(self.prompt_file_path, "r", encoding="utf-8") as file:
-                prompt_template = file.read()
-                logging.info(f"Successfully loaded prompt template from {self.prompt_file_path}")
-                return prompt_template
+            with open(prompt_path, "r", encoding="utf-8") as file:
+                logging.info(f"Successfully loaded prompt template from {prompt_path}")
+
+                if template_name == "greeting":
+                    input_vars = ["store_name"]
+                else:
+                    input_vars = ["user_query", "search_results", "history"]
+
+                return PromptTemplate(template=file.read(), input_variables=input_vars)
         except Exception as e:
             logging.error(f"Error reading prompt template: {e}")
             raise
@@ -113,16 +113,22 @@ class LLMHandler:
         )
         
 
-    def process_with_llm(self, user_query, search_results, history):
+    def process_with_llm(self, user_query, search_results, history, intent, template_name="default"):
         try:
             logging.info(f"Processing query: {user_query}")
 
-            formatted_prompt = self.prompt_template.format(
-                user_query=user_query,
-                search_results=search_results,
-                history=history
-            )
-            
+            prompt_template = self._load_prompt_template(template_name)
+            if template_name == "greeting":
+                formatted_prompt = prompt_template.format(
+                    store_name=config["store"]["name"],
+                )
+            else:
+                formatted_prompt = prompt_template.format(
+                    user_query=user_query,
+                    search_results=search_results,
+                    history=history,
+                    intent=intent
+                )
             ai_msg = self.llm.invoke(formatted_prompt)
 
             logging.info("Response generated successfully")
