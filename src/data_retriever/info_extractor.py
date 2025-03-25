@@ -127,7 +127,11 @@ class QueryInfoExtractor:
             value_number = item.get("valueNumber")
             value_string = item.get("valueString")
 
-            if path in ["price", "rating"] and operator in operator_map:
+            if path == "features" and value_string == "cheap":
+                filter_condition = getattr(Filter.by_property("price"), operator_map["LessThan"])(10.0)
+                filters &= filter_condition
+                logging.info("Cheap feature added to filter")
+            elif path in ["price", "rating"] and operator in operator_map:
                 weaviate_operator = operator_map[operator]
                 filter_condition = getattr(Filter.by_property(path), weaviate_operator)(float(value_number))
                 filters &= filter_condition

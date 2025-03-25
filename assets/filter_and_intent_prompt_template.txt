@@ -33,6 +33,7 @@ Based on this query, please provide the filters and intent in the following JSON
     {{  "path": "features", "valueString": "gluten-free" }}
 ]
 
+- Choose only one most general category if multiple are mentioned. 
 - If the category mentioned in the query does not match any predefined categories from the **Categories** section, assign the value "None" to the category field. **Always provide the category**
 - If a filter can be placed in both the "features" and "categories", include it in both fields. However, the "features" filter should not contain an operator.
 - If no applicable filters are found in the query, return an empty list without explanation.

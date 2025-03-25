@@ -14,7 +14,12 @@ class ChatbotHandler:
             self.llmhandler = LLMHandler()
             self.filter_extractor = QueryInfoExtractor()
             self.offer_db = OffersDatabase()
-            self.history_limit = 5
+            self.history_limit = 8
+
+            self.initial_history = [
+            {"role": "user", "content": "Hello, How are you."}, 
+            {"role": "assistant", "content": "Hello! Welcome to Rifai.com. We specialize in premium nuts, chocolates, dried fruits, coffee, and gourmet gift boxes. How can I assist you today?"}
+            ]
 
             # self.recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=2001)
             
@@ -35,14 +40,15 @@ class ChatbotHandler:
         """
         try:
             knowledge, intent, template = self._get_weaviate_data(query=query, history=history)
+            history = self.initial_history + history
             logging.info(f"Received query: {query}")
             # print(self.recommendation_str)
             
             formatted_history = ""
             for i in range(0, len(history) - 1, 2):
                 if history[i]["role"] == "user" and history[i + 1]["role"] == "assistant":
-                    formatted_history += f"Human: {history[i]['content']}\nMe: {history[i + 1]['content']}\n"
-            formatted_history += f"\nHuman: {query}"
+                    formatted_history += f"User: {history[i]['content']}\nAssistant: {history[i + 1]['content']}\n"
+            formatted_history += f"\nUser: {query}"
 
             if query is not None:
                 partial_message = ""
@@ -110,6 +116,7 @@ class ChatbotHandler:
                     autoscroll=True,
                     scale=7
                 ),
+                autofocus=True,
                 type="messages"
             )
             logging.info("Launching Gradio chatbot.")
