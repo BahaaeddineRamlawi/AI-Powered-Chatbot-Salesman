@@ -1,5 +1,5 @@
+numpy==1.26.4
 pandas==2.2.3
-sentence-transformers==3.4.1
 weaviate-client==4.11.0
 gradio==5.17.1
 mistralai==1.5.0
@@ -7,3 +7,8 @@ scikit-surprise==1.1.4
 langchain-google-genai==2.1.0
 langchain-groq==0.2.5
 FlashRank==0.2.10
+PyYAML==6.0.2
+scikit-learn==1.6.1
+langchain-openai==0.3.4
+langchain-mistralai==0.2.7
+langchain==0.3.17
