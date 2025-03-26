@@ -95,6 +95,10 @@ class ChatbotHandler:
 
             final_combined_query = ", ".join(reversed(combined_queries))
             logging.info(f"Final combined query: {final_combined_query}")
+        elif intent == "ask_for_unrelated_product":
+            logging.info("Intent is 'ask_for_offers'")
+            knowledge =  self.offer_db.get_offers()
+            return "We don't have this products", intent, "default"
         elif intent == "ask_for_offers":
             logging.info("Intent is 'ask_for_offers'")
             knowledge =  self.offer_db.get_offers()

@@ -17,8 +17,7 @@ class QueryInfoExtractor:
     
     def __init__(self):
         """Initialize the filter extractor with necessary configurations."""
-        # self.llm_provider = config["llm"]["provider"]
-        self.llm_provider = "mistral"
+        self.llm_provider = config["llm"]["provider"]
         self.prompt_file_path = config["prompt_templates"]["filter_and_intent_prompt_template_path"]
         try:
             logging.info(f"Initializing LLMHandler with provider {self.llm_provider}")
