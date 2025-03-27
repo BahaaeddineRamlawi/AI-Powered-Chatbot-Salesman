@@ -76,7 +76,7 @@ class OffersDatabase:
             logging.error(f"Error fetching offers for product {product_id}: {e}")
             return []
     
-    def get_offers(self, limit=10):
+    def get_offers(self, limit=20):
         """Retrieve a limited number of offers from the database and return them as strings."""
         self.connect()
         try:

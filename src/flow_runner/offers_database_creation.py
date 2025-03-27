@@ -4,18 +4,13 @@ from src.utils import logging
 if __name__ == "__main__":
     try:
         db = OffersDatabase()
+        
         db.connect()
-        logging.info("Database connected successfully.")
-        
-        db.create_table()
-        logging.info("Table created successfully.")
-        
+        db.create_table() 
         db.insert_data()
-        logging.info("Data inserted successfully.")
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         
     finally:
         db.close()
-        logging.info("Database connection closed.")

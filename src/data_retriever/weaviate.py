@@ -23,15 +23,12 @@ class WeaviateHandler:
             self.collection_name = config["weaviate"]["collection_name"]
             self.db_name = config["database"]["name"]
 
-            logging.info(f"Using collection: {self.collection_name} and database: {self.db_name}")
-
             self.db = OffersDatabase()
             logging.info("Database connection established.")
 
             self.ranker = Ranker()
             logging.info("Ranker initialized.")
 
-            logging.info("Connecting to Weaviate...")
             self.client = weaviate.connect_to_local()
 
             if not self.client:
@@ -44,12 +41,11 @@ class WeaviateHandler:
             logging.error(f"Error during initialization of WeaviateSearch: {e}")
             self.client = None
             self.collection = None
-            logging.info("Cleaning up resources...")
-
 
             if self.client:
                 logging.info("Closing Weaviate client.")
                 self.client.close()
+            
             logging.info("WeaviateSearch initialization failed.")
 
 
@@ -158,7 +154,6 @@ class WeaviateHandler:
     def get_all_items(self):
         """
         Retrieve all items from the Weaviate collection.
-        :return: List of all items in the database.
         """
         self.collection = self.client.collections.get(self.collection_name)
         if not self.collection:
@@ -167,8 +162,6 @@ class WeaviateHandler:
         logging.info(f"Collection '{self.collection_name}' loaded successfully.")
 
         try:
-            logging.info("Fetching all items from Weaviate...")
-
             response = self.collection.query.fetch_objects(limit=10000)  
 
             items = [obj.properties for obj in response.objects] if response and response.objects else []
@@ -212,7 +205,6 @@ class WeaviateHandler:
             product_str += f"Rating: {rating}\n"
             product_str += f"Image URL: {image_url}\n"
 
-            
             products_str.append(product_str)
         
         self.db.connect()
@@ -257,31 +249,44 @@ class WeaviateHandler:
     
     
     def add_offer_to_all_offers(self, offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers):
-        """Adds the offer and its associated products to the all_offers dictionary."""
-        
-        if offer_id not in all_offers:
-            all_offers[offer_id] = {
-                "name": offer_name,
-                "price": offer_price,
-                "description": offer_desc,
-                "products": []
-            }
+        """Adds the offer and its associated products to the all_offers dictionary"""
+        try:
+            logging.info(f"Adding offer: {offer_id} - {offer_name} to all_offers.")
 
-        for pid in product_ids:
-            product_response = self.collection.query.fetch_objects(
-                filters=Filter.by_property("product_id").equal(pid)
-            )
-            if product_response.objects:
-                product_obj = product_response.objects[0].properties
-                product_image = product_obj.get("image", "none")
-                product_title = product_obj.get("title", "No Title")
+            if offer_id not in all_offers:
+                all_offers[offer_id] = {
+                    "name": offer_name,
+                    "price": offer_price,
+                    "description": offer_desc,
+                    "products": []
+                }
 
-                all_offers[offer_id]["products"].append({
-                    "image": product_image,
-                    "title": product_title
-                })
 
-        return all_offers
+            for pid in product_ids:
+                logging.info(f"Fetching product details for Product ID: {pid}")
+
+                product_response = self.collection.query.fetch_objects(
+                    filters=Filter.by_property("product_id").equal(pid)
+                )
+
+                if product_response.objects:
+                    product_obj = product_response.objects[0].properties
+                    product_image = product_obj.get("image", "none")
+                    product_title = product_obj.get("title", "No Title")
+
+                    all_offers[offer_id]["products"].append({
+                        "image": product_image,
+                        "title": product_title
+                    })
+
+                    logging.info(f"Added product {pid} to offer {offer_id}.")
+
+            logging.info(f"Offer {offer_id} processing complete.")
+            return all_offers
+
+        except Exception as e:
+            logging.error(f"Error adding offer {offer_id}: {e}", exc_info=True)
+            return all_offers
 
 
     def process_and_store_products(self):
@@ -296,6 +301,8 @@ class WeaviateHandler:
 
             self.create_schema()
             self.insert_data(df)
+
+            logging.info("Product processing and storage completed successfully.")
         
         except Exception as main_error:
             logging.critical(f"Critical Error: {main_error}")

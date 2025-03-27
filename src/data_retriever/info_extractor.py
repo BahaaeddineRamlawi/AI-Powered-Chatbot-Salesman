@@ -129,7 +129,6 @@ class QueryInfoExtractor:
             if path == "features" and value_string == "cheap":
                 filter_condition = getattr(Filter.by_property("price"), operator_map["LessThan"])(10.0)
                 filters &= filter_condition
-                logging.info("Cheap feature added to filter")
             elif path in ["price", "rating"] and operator in operator_map:
                 weaviate_operator = operator_map[operator]
                 filter_condition = getattr(Filter.by_property(path), weaviate_operator)(float(value_number))
@@ -165,17 +164,13 @@ class QueryInfoExtractor:
         """Extract filters from the given query."""
         filters = Filter.by_property("stock_status").equal("In stock")
         intent = "unknown"
-        try:
-            logging.info(f"Extracting filters for query: {query}")
-            
+        try:       
             filters_str = self.llm_chain.run(query=query)
-            logging.info("Response returned from LLM.")
 
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
-            logging.info("Cleaned LLM response")
 
-            print(f"Query: {query}")
-            print(f"Response: {cleaned_string}")
+            # print(f"Query: {query}")
+            # print(f"Response: {cleaned_string}")
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)
