@@ -142,22 +142,26 @@ class QueryInfoExtractor:
         return filters
 
 
-    def _extract_intent(self, response):
+    def _extract_intent_and_features(self, response):
         """Extracts the intent from a given response."""
         intent = "unknown"
+        features = []
         try:
             for item in response:
                 path = item.get("path")
                 if path and path == "intent":
                     intent = item.get("valueString", "unknown")
-                    break
+                elif path == "features":
+                    feature = item.get("valueString")
+                    if feature:
+                        features.append(feature)
 
-            logging.info(f"Extracted intent: {intent}")
-            return intent
+            logging.info(f"Extracted intent: {intent}, features: {features}")
+            return intent,features
 
         except json.JSONDecodeError:
             logging.error("Invalid JSON format.")
-            return "unknown"
+            return "unknown",[]
     
 
     def extract_info_from_query(self, query):
@@ -169,20 +173,20 @@ class QueryInfoExtractor:
 
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
 
-            # print(f"Query: {query}")
-            # print(f"Response: {cleaned_string}")
+            print(f"Query: {query}")
+            print(f"Response: {cleaned_string}")
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)
-            intent = self._extract_intent(valid_json)
+            intent, features = self._extract_intent_and_features(valid_json)
 
             logging.info("Filters and Intent extracted")
-            return filters, intent
+            return filters, intent, features
 
         except Exception as e:
             logging.error(f"Error extracting filters: {e}")
-            return filters, intent
+            return filters, intent, []
 
         except json.JSONDecodeError as e:
             logging.error(f"Error decoding JSON response: {e}")
-            return filters, intent
+            return filters, intent, []

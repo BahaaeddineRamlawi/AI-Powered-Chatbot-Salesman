@@ -251,8 +251,6 @@ class WeaviateHandler:
     def add_offer_to_all_offers(self, offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers):
         """Adds the offer and its associated products to the all_offers dictionary"""
         try:
-            logging.info(f"Adding offer: {offer_id} - {offer_name} to all_offers.")
-
             if offer_id not in all_offers:
                 all_offers[offer_id] = {
                     "name": offer_name,
@@ -279,7 +277,6 @@ class WeaviateHandler:
                         "title": product_title
                     })
 
-                    logging.info(f"Added product {pid} to offer {offer_id}.")
 
             logging.info(f"Offer {offer_id} processing complete.")
             return all_offers

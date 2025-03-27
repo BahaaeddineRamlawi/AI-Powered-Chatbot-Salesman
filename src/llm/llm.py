@@ -54,7 +54,7 @@ class LLMHandler:
                 logging.info(f"Successfully loaded prompt template from {prompt_path}")
 
                 if template_name == "greeting":
-                    input_vars = ["store_name"]
+                    input_vars = ["user_query"]
                 else:
                     input_vars = ["user_query", "search_results", "history"]
 
@@ -113,21 +113,22 @@ class LLMHandler:
         )
         
 
-    def process_with_llm(self, user_query, search_results, history, intent, template_name="default"):
+    def process_with_llm(self, user_query, search_results, history, intent, features, template_name="default"):
         try:
             logging.info(f"Processing query: {user_query}")
 
             prompt_template = self._load_prompt_template(template_name)
             if template_name == "greeting":
                 formatted_prompt = prompt_template.format(
-                    store_name=config["store"]["name"],
+                    user_query=user_query
                 )
             else:
                 formatted_prompt = prompt_template.format(
                     user_query=user_query,
                     search_results=search_results,
                     history=history,
-                    intent=intent
+                    intent=intent,
+                    features=features
                 )
             ai_msg = self.llm.invoke(formatted_prompt)
 

@@ -33,13 +33,13 @@ class ChatbotHandler:
             raise
 
 
-    def stream_response(self, query, history, intent):
+    def stream_response(self, query, history):
         """
         Handle streaming responses to the chat interface.
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
-            knowledge, intent, template = self._get_weaviate_data(query=query, history=history)
+            knowledge, intent, features, template = self._get_weaviate_data(query=query, history=history)
             history = self.initial_history + history
             logging.info(f"Received query: {query}")
             # print(self.recommendation_str)
@@ -54,7 +54,7 @@ class ChatbotHandler:
                 partial_message = ""
 
                 rag_prompt = self.llmhandler.process_with_llm(
-                    query, knowledge, formatted_history, intent, template
+                    query, knowledge, formatted_history, intent, features, template
                 )
 
                 for response in self.llmhandler.stream(rag_prompt):
@@ -70,11 +70,11 @@ class ChatbotHandler:
         max_history_check = 3 
         knowledge = ""
         combined_query = query
-        filters, intent = self.filter_extractor.extract_info_from_query(query)
+        filters, intent, features = self.filter_extractor.extract_info_from_query(query)
         final_combined_query = query
         if intent == "greeting":
-            return "", intent, "greeting"
-        elif intent == "ask_without_product":
+            return "", intent, [], "greeting"
+        elif (intent == "ask_without_product") and (features == []):
             logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
@@ -98,15 +98,15 @@ class ChatbotHandler:
         elif intent == "ask_for_unrelated_product":
             logging.info("Intent is 'ask_for_offers'")
             knowledge =  self.offer_db.get_offers()
-            return "We don't have this products", intent, "default"
+            return "We don't have this products", intent, [], "default"
         elif intent == "ask_for_offers":
             logging.info("Intent is 'ask_for_offers'")
             knowledge =  self.offer_db.get_offers()
-            return knowledge, intent, "default"
+            return knowledge, intent, features, "default"
 
 
         knowledge = self.search_engine.hybrid_search(query=final_combined_query, filters=filters)
-        return knowledge, intent, "default"
+        return knowledge, intent, features, "default"
 
 
     def launch_chatbot(self):
