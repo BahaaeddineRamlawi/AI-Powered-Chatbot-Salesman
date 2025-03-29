@@ -87,7 +87,7 @@ class ChatbotHandler:
 
                 combined_query = ", ".join(reversed(combined_queries))
 
-                _, combined_intent = self.filter_extractor.extract_info_from_query(combined_query)
+                _, combined_intent, features = self.filter_extractor.extract_info_from_query(combined_query)
                 logging.info(f"After appending, combined query: {combined_query} | {combined_intent}")
                
                 if combined_intent != "ask_without_product":
@@ -96,8 +96,7 @@ class ChatbotHandler:
             final_combined_query = ", ".join(reversed(combined_queries))
             logging.info(f"Final combined query: {final_combined_query}")
         elif intent == "ask_for_unrelated_product":
-            logging.info("Intent is 'ask_for_offers'")
-            knowledge =  self.offer_db.get_offers()
+            logging.info("Intent is 'ask_for_unrelated_product'")
             return "We don't have this products", intent, [], "default"
         elif intent == "ask_for_offers":
             logging.info("Intent is 'ask_for_offers'")
