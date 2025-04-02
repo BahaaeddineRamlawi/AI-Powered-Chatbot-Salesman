@@ -334,8 +334,10 @@ class WeaviateHandler:
             reranked = RerankedResponse()
             reranked_docs = reranked.rerank_results(query, documents)
             reranked.process_objects(reranked_docs, limit=limit)
+
+            first_product = reranked_docs[0] if reranked_docs else None
             
-            return self._format_results(reranked)
+            return self._format_results(reranked),first_product
             
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
