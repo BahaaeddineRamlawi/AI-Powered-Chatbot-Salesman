@@ -82,7 +82,7 @@ class ChatbotHandler:
         final_combined_query = query
         if intent == "greeting":
             return "", intent, [], "greeting"
-        elif ((intent == "ask_without_product") and (features == [])) or intent == "ask_for_recommendation":
+        elif ((intent == "ask_without_product") and (features == [])) or (intent == "ask_for_recommendation" and (features == [])):
             logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
@@ -110,9 +110,11 @@ class ChatbotHandler:
             logging.info("Intent is 'ask_for_offers'")
             knowledge =  self.offer_db.get_offers()
             return knowledge, intent, features, "default"
-
-        knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query, filters=filters)
-        if intent == "ask_for_recommendation":
+        
+        
+        features_string = ", ".join(features)
+        knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, filters=filters)
+        if intent == "ask_for_recommendation" and (features == []):
             logging.info("Intent is 'ask_for_recommendation'")
             if first_product:
                 product_id = first_product["product_id"]
