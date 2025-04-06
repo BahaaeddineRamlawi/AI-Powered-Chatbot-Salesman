@@ -9,17 +9,10 @@ class ChatbotHandler:
         try:
             self.search_engine = WeaviateHandler()
 
-            self.recommendation_engine = RecommendationHandler()
-
             self.llmhandler = LLMHandler()
             self.filter_extractor = QueryInfoExtractor()
             self.offer_db = OffersDatabase()
             self.history_limit = 8
-
-            self.initial_history = [
-            {"role": "user", "content": "Hello, How are you."}, 
-            {"role": "assistant", "content": "Hello! Welcome to Rifai.com. We specialize in premium nuts, chocolates, dried fruits, coffee, and gourmet gift boxes. How can I assist you today?"}
-            ]
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -34,14 +27,12 @@ class ChatbotHandler:
         """
         try:
             knowledge, intent, features, template = self._get_knowledge(query=query, history=history,user_id=2001)
-            history = self.initial_history + history
             logging.info(f"Received query: {query}")
-            # print(self.recommendation_str)
             
             formatted_history = ""
             for i in range(0, len(history) - 1, 2):
                 if history[i]["role"] == "user" and history[i + 1]["role"] == "assistant":
-                    formatted_history += f"User: {history[i]['content']}\nAssistant: {history[i + 1]['content']}\n"
+                    formatted_history += f"User: {history[i]['content']}\Agent: {history[i + 1]['content']}\n"
             formatted_history += f"\nUser: {query}"
 
             if query is not None:
@@ -59,6 +50,7 @@ class ChatbotHandler:
             yield "Sorry, there was an error processing your request."
     
     def _get_recommendation_data(self, user_id, product_id):
+        self.recommendation_engine = RecommendationHandler()
         recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=user_id, product_id=product_id)
             
         recommendation_str = ""
@@ -80,6 +72,13 @@ class ChatbotHandler:
         combined_query = query
         filters, intent, features = self.filter_extractor.extract_info_from_query(query)
         final_combined_query = query
+        rerank_feature = ""
+
+        if 'cheap' in features:
+            rerank_feature = 'cheap'
+        elif 'expensive' in features:
+            rerank_feature = 'expensive'
+    
         if intent == "greeting":
             return "", intent, [], "greeting"
         elif ((intent == "ask_without_product") and (features == [])) or (intent == "ask_for_recommendation" and (features == [])):
@@ -113,13 +112,12 @@ class ChatbotHandler:
         
         
         features_string = ", ".join(features)
-        knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, filters=filters)
+        knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, feature=rerank_feature, filters=filters)
         if intent == "ask_for_recommendation" and (features == []):
             logging.info("Intent is 'ask_for_recommendation'")
             if first_product:
                 product_id = first_product["product_id"]
                 knowledge = self._get_recommendation_data(int(user_id), int(product_id))
-        print(knowledge)
         return knowledge, intent, features, "default"
 
 

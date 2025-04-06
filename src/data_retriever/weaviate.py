@@ -259,7 +259,6 @@ class WeaviateHandler:
                     "products": []
                 }
 
-
             for pid in product_ids:
                 logging.info(f"Fetching product details for Product ID: {pid}")
 
@@ -308,7 +307,7 @@ class WeaviateHandler:
             self.close()
 
 
-    def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
+    def hybrid_search(self, query, feature="", alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
         self.collection = self.client.collections.get(self.collection_name)
         
@@ -332,7 +331,7 @@ class WeaviateHandler:
                 return {"message": "No relevant results found."}
             
             reranked = RerankedResponse()
-            reranked_docs = reranked.rerank_results(query, documents)
+            reranked_docs = reranked.rerank_results(query, documents, feature)
             reranked.process_objects(reranked_docs, limit=limit)
 
             first_product = reranked_docs[0] if reranked_docs else None
