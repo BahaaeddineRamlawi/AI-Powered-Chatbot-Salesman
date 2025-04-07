@@ -11,7 +11,7 @@ Classify the user's intent into one of the following categories:
   - Examples:  
     - Positive: *"I love this store!"*, *"That is great!"*, *"Amazing service."*, *"Thank you, you are Great"* 
     - Negative: *"I hate this."*, *"You are useless."*, *"Terrible experience."*, *"Bad store."*  
-  - **Even single-word criticisms count as feedback** (e.g., *"Useless"*, *"Bad"*, *"Terrible"*, *"Nice"*, *"Great"*, *"Awesome"*).
+  - **Even single-word criticisms count as feedback** (e.g., *"Useless"*, *"Bad"*, *"Terrible"*, *"Nice"*, *"Great"*, *"Awesome"*, *"WOW"*).
 - **"gibberish"** → When the user's input contains random letters, numbers, or symbols that do not form meaningful words or sentences (e.g., "dfjksd", "asdasdasd", "lkj32o4j23").
 - **"thanking"** → When the user expresses gratitude, such as saying "Thank you", "Thanks", "I appreciate it", etc.
 - **"ask_for_unrelated_product"** → When the user asks for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets).
@@ -39,8 +39,8 @@ Based on this query, please provide the filters and intent in the following JSON
 
 [
     {{  "path": "intent", "valueString": "greeting" }},
-    {{  "path": "categories", "operator": "Equal", "valueString": "Nuts" }},
-    {{  "path": "rating", "operator": "GreaterThan", "valueNumber": 4 }},
+    {{  "path": "categories", "operator": "Equal", "valueString": "All" }},
+    {{  "path": "rating", "operator": "GreaterThan", "valueNumber": 0 }},
     {{  "path": "features", "valueString": "gluten-free" }}
 ]
 

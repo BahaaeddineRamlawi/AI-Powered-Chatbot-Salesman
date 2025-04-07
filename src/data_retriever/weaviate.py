@@ -328,7 +328,7 @@ class WeaviateHandler:
 
             if not documents:
                 logging.info("Hybrid search returned no results. Skipping reranking.")
-                return {"message": "No relevant results found."}
+                return "No Product Available or Requested", {}
             
             reranked = RerankedResponse()
             reranked_docs = reranked.rerank_results(query, documents, feature)
