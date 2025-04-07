@@ -2,15 +2,15 @@ logging:
   logs_dir: "./logs"
 
 input_file:
-  products_data_path: "./assets/products.csv"
-  offers_data_path: "./assets/offers.csv"
-  cleaned_products_data_path: "./assets/cleaned_products.csv"
-  user_rating_datapath: "./assets/user_rating.csv"
+  products_data_path: "./assets/CSVs/products.csv"
+  offers_data_path: "./assets/CSVs/offers.csv"
+  cleaned_products_data_path: "./assets/CSVs/cleaned_products.csv"
+  user_rating_datapath: "./assets/CSVs/user_rating.csv"
 
 prompt_templates:
-  main_prompt_template_path: "./assets/main_prompt_template.txt"
-  filter_and_intent_prompt_template_path: "./assets/filter_and_intent_prompt_template.txt"
-  greeting_prompt_template_path: "./assets/greeting_template.txt"
+  main_prompt_template_path: "./assets/templates/main_prompt_template.txt"
+  filter_and_intent_prompt_template_path: "./assets/templates/filter_and_intent_prompt_template.txt"
+  greeting_prompt_template_path: "./assets/templates/greeting_template.txt"
 
 output_file:
   cleaned_products_data_path: "./assets/cleaned_products.csv"

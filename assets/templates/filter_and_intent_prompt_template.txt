@@ -7,17 +7,18 @@ Classify the user's intent into one of the following categories:
 
 - **"greeting"** → When the user greets only using a common greeting phrase such as "Hi", "Hello", "Hey", "Good morning", etc.
         - Do not classify as "greeting" if the input contains a thank you message or a feedback.
-- **"ask_for_unrelated_product"** → When the user asks for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets).
-- **"ask_for_product"** → When the user mentions a **specific product**, a **category** or a **feature** in their query (e.g., "Do you have dark chocolate?", "I want to buy almonds").  
-- **"ask_for_offers"** → When the user inquires about promotions, discounts, or special deals (e.g., "What are your current offers?", "Do you have any discounts?").  
-- **"ask_for_recommendation"** → When the user explicitly asks for product suggestions, recommendations, or what you would suggest (e.g., "What do you recommend?", "Can you suggest something?", "What’s your best product?", "I don’t know what to buy, help me choose").
-- **"ask_without_product"** → When the user asks something **without** mentioning a specific **product**, a **category** or a **feature** (e.g., "What do you sell?", "Tell me more", "Show me something interesting").  
-- **"feedback"** → When the user provides an opinion or review about the store, products, or service, including **praise, complaints, or suggestions**, **positive or negative** and Thanking as well.  
+- **"feedback"** → When the user provides an opinion or review about the store, products, or service, including **praise, complaints, or suggestions**, **positive or negative**.
   - Examples:  
     - Positive: *"I love this store!"*, *"That is great!"*, *"Amazing service."*, *"Thank you, you are Great"* 
     - Negative: *"I hate this."*, *"You are useless."*, *"Terrible experience."*, *"Bad store."*  
   - **Even single-word criticisms count as feedback** (e.g., *"Useless"*, *"Bad"*, *"Terrible"*, *"Nice"*, *"Great"*, *"Awesome"*).
 - **"gibberish"** → When the user's input contains random letters, numbers, or symbols that do not form meaningful words or sentences (e.g., "dfjksd", "asdasdasd", "lkj32o4j23").
+- **"thanking"** → When the user expresses gratitude, such as saying "Thank you", "Thanks", "I appreciate it", etc.
+- **"ask_for_unrelated_product"** → When the user asks for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets).
+- **"ask_for_product"** → When the user mentions a **specific product**, a **category** or a **feature** in their query (e.g., "Do you have dark chocolate?", "I want to buy almonds").  
+- **"ask_for_offers"** → When the user inquires about promotions, discounts, or special deals (e.g., "What are your current offers?", "Do you have any discounts?").  
+- **"ask_for_recommendation"** → When the user explicitly asks for product suggestions, recommendations, or what you would suggest (e.g., "What do you recommend?", "Can you suggest something?", "What’s your best product?", "I don’t know what to buy, help me choose").
+- **"ask_without_product"** → When the user asks something **without** mentioning a specific **product**, a **category** or a **feature** (e.g., "What do you sell?", "Tell me more", "Show me something interesting").  
 - **"other"** → When the intent does not match any of the others above.
 
 ### **Step 2: Filter Extraction**

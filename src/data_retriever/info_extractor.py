@@ -139,10 +139,11 @@ class QueryInfoExtractor:
         return filters
 
 
-    def _extract_intent_and_features(self, response):
+    def _extract_intent_features_and_category(self, response):
         """Extracts the intent from a given response."""
         intent = "unknown"
         features = []
+        categories = []
         try:
             for item in response:
                 path = item.get("path")
@@ -152,9 +153,13 @@ class QueryInfoExtractor:
                     feature = item.get("valueString")
                     if feature:
                         features.append(feature)
+                elif path == "categories":
+                    category = item.get("valueString")
+                    if category:
+                        categories.append(category)
 
             logging.info(f"Extracted intent: {intent}, features: {features}")
-            return intent,features
+            return intent,features,categories
 
         except json.JSONDecodeError:
             logging.error("Invalid JSON format.")
@@ -175,10 +180,10 @@ class QueryInfoExtractor:
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)
-            intent, features = self._extract_intent_and_features(valid_json)
+            intent, features, categories = self._extract_intent_features_and_category(valid_json)
 
             logging.info("Filters and Intent extracted")
-            return filters, intent, features
+            return filters, intent, features, categories
 
         except Exception as e:
             logging.error(f"Error extracting filters: {e}")

@@ -5,6 +5,8 @@ from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 import os
+import requests
+import json
 
 from src.utils import logging, config
 
@@ -13,11 +15,9 @@ class LLMHandler:
         self.llm_provider = config["llm"]["provider"]
         self.prompt_files = {
             "default": config["prompt_templates"]["main_prompt_template_path"],
-            "greeting": config["prompt_templates"]["greeting_prompt_template_path"],
         }
         
         self._initialize_llm()
-        
         logging.info(f"LLMProvider {self.llm_provider} initialized successfully")
 
     def _initialize_llm(self):
@@ -38,12 +38,9 @@ class LLMHandler:
             raise ValueError(f"Invalid LLM provider: {self.llm_provider}")
 
 
-    def _load_prompt_template(self, template_name):
+    def _load_prompt_template(self):
         """Loads a prompt template and wraps it with PromptTemplate"""
-        if template_name not in self.prompt_files:
-            raise ValueError(f"Invalid template name: {template_name}")
-
-        prompt_path = self.prompt_files[template_name]
+        prompt_path = config["prompt_templates"]["main_prompt_template_path"]
 
         if not os.path.exists(prompt_path):
             logging.error(f"Prompt file {prompt_path} not found.")
@@ -52,13 +49,7 @@ class LLMHandler:
         try:
             with open(prompt_path, "r", encoding="utf-8") as file:
                 logging.info(f"Successfully loaded prompt template from {prompt_path}")
-
-                if template_name == "greeting":
-                    input_vars = ["user_query"]
-                else:
-                    input_vars = ["user_query", "search_results", "history"]
-
-                return PromptTemplate(template=file.read(), input_variables=input_vars)
+                return PromptTemplate(template=file.read(), input_variables=["user_query", "search_results", "history"])
         except Exception as e:
             logging.error(f"Error reading prompt template: {e}")
             raise
@@ -113,27 +104,21 @@ class LLMHandler:
         )
         
 
-    def process_with_llm(self, user_query, search_results, history, intent, features, template_name="default"):
+    def process_with_llm(self, user_query, search_results, history, intent, features):
         try:
             logging.info(f"Processing query: {user_query}")
 
-            prompt_template = self._load_prompt_template(template_name)
-            if template_name == "greeting":
-                formatted_prompt = prompt_template.format(
-                    user_query=user_query
-                )
-            else:
-                formatted_prompt = prompt_template.format(
-                    user_query=user_query,
-                    search_results=search_results,
-                    history=history,
-                    intent=intent,
-                    features=features
-                )
-            ai_msg = self.llm.invoke(formatted_prompt)
+            prompt_template = self._load_prompt_template()
+            formatted_prompt = prompt_template.format(
+                user_query=user_query,
+                search_results=search_results,
+                history=history,
+                intent=intent,
+                features=features
+            )
 
             logging.info("Response generated successfully")
-            return ai_msg.content
+            return formatted_prompt
 
         except Exception as e:
             logging.error(f"Error during processing: {e}")

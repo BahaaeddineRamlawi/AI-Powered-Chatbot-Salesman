@@ -13,6 +13,7 @@ class ChatbotHandler:
             self.filter_extractor = QueryInfoExtractor()
             self.offer_db = OffersDatabase()
             self.history_limit = 8
+            self.max_history_check = 3 
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -26,7 +27,7 @@ class ChatbotHandler:
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
-            knowledge, intent, features, template = self._get_knowledge(query=query, history=history,user_id=2001)
+            knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=2001)
             logging.info(f"Received query: {query}")
             
             formatted_history = ""
@@ -39,7 +40,7 @@ class ChatbotHandler:
                 partial_message = ""
 
                 rag_prompt = self.llmhandler.process_with_llm(
-                    query, knowledge, formatted_history, intent, features, template
+                    query, knowledge, formatted_history, intent, features
                 )
 
                 for response in self.llmhandler.stream(rag_prompt):
@@ -49,6 +50,7 @@ class ChatbotHandler:
             logging.error(f"Error during message processing: {e}")
             yield "Sorry, there was an error processing your request."
     
+
     def _get_recommendation_data(self, user_id, product_id):
         self.recommendation_engine = RecommendationHandler()
         recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=user_id, product_id=product_id)
@@ -67,10 +69,9 @@ class ChatbotHandler:
 
     def _get_knowledge(self, query, history,user_id):
         """Retrieve knowledge baseed on query and intent."""
-        max_history_check = 3 
         knowledge = ""
         combined_query = query
-        filters, intent, features = self.filter_extractor.extract_info_from_query(query)
+        filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query)
         final_combined_query = query
         rerank_feature = ""
 
@@ -79,37 +80,32 @@ class ChatbotHandler:
         elif 'expensive' in features:
             rerank_feature = 'expensive'
     
-        if intent == "greeting":
-            return "", intent, [], "greeting"
-        elif ((intent == "ask_without_product") and (features == [])) or (intent == "ask_for_recommendation" and (features == [])):
+        if (intent == "ask_without_product" and features == []) or (intent == "ask_for_recommendation" and features == [] and categories == []):
             logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
-
             user_queries = [entry["content"] for entry in reversed(history) if entry["role"] == "user"]
 
-            for past_query in user_queries[:max_history_check]:
-
+            for past_query in user_queries[:self.max_history_check]:
                 combined_queries.append(past_query)
-
                 combined_query = ", ".join(reversed(combined_queries))
-
-                _, past_intent, features = self.filter_extractor.extract_info_from_query(past_query)
+                _, past_intent, features, categories = self.filter_extractor.extract_info_from_query(past_query)
                 logging.info(f"After appending, combined query: {combined_query}")
                
-                if past_intent != "ask_without_product" and past_intent != "ask_for_recommendation":
+                if past_intent == "ask_for_product":
                     break
 
             final_combined_query = ", ".join(reversed(combined_queries))
             logging.info(f"Final combined query: {final_combined_query}")
+
         elif intent == "ask_for_unrelated_product":
             logging.info("Intent is 'ask_for_unrelated_product'")
-            return "We don't have this products", intent, [], "default"
+            return "We don't have this products", intent, []
+        
         elif intent == "ask_for_offers":
             logging.info("Intent is 'ask_for_offers'")
             knowledge =  self.offer_db.get_offers()
-            return knowledge, intent, features, "default"
-        
+            return knowledge, intent, features
         
         features_string = ", ".join(features)
         knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, feature=rerank_feature, filters=filters)
@@ -118,7 +114,7 @@ class ChatbotHandler:
             if first_product:
                 product_id = first_product["product_id"]
                 knowledge = self._get_recommendation_data(int(user_id), int(product_id))
-        return knowledge, intent, features, "default"
+        return knowledge, intent, features
 
 
     def launch_chatbot(self):
