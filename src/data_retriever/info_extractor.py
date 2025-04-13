@@ -166,12 +166,12 @@ class QueryInfoExtractor:
             return "unknown",[]
     
 
-    def extract_info_from_query(self, query):
+    def extract_info_from_query(self, query, history):
         """Extract filters from the given query."""
         filters = Filter.by_property("stock_status").equal("In stock")
         intent = "unknown"
         try:       
-            filters_str = self.llm_chain.run(query=query)
+            filters_str = self.llm_chain.run(query=query, history=history)
 
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
 

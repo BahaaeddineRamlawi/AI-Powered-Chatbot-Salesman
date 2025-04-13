@@ -29,7 +29,7 @@ azure_openai:
   api_key: "AGhTozOxLUifud6ZLHEKvdwCjXV2ms9brmSvh9aBF259zp6sTVByJQQJ99BCACYeBjFXJ3w3AAABACOGQEZJ"
   azure_endpoint: "https://fyp-openai.openai.azure.com/"
   azure_deployment: "gpt-4o-mini"
-  api_version: "2023-12-01-preview"
+  api_version: "2024-12-01-preview"
 
 openai:
   api_key: ""

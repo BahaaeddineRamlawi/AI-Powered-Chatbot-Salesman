@@ -22,7 +22,7 @@ class RerankedResponse:
             type('RerankedObject', (), {'properties': doc}) for doc in objects
         ]
 
-    def rerank_results(self, query: str, documents: List[Dict[str, Any]], feature) -> List[Dict[str, Any]]:
+    def rerank_results(self, query: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Rerank search results using FlashRank
         """
@@ -58,10 +58,10 @@ class RerankedResponse:
             if not reranked_docs:
                 reranked_docs = documents
 
-            if feature == 'cheap':
-                reranked_docs.sort(key=lambda x: x.get('price', float('inf')))
-            elif feature == 'expensive':
-                reranked_docs.sort(key=lambda x: x.get('price', float('-inf')), reverse=True)
+            # if feature == 'cheap':
+            #     reranked_docs.sort(key=lambda x: x.get('price', float('inf')))
+            # elif feature == 'expensive':
+            #     reranked_docs.sort(key=lambda x: x.get('price', float('-inf')), reverse=True)
 
             return reranked_docs
         

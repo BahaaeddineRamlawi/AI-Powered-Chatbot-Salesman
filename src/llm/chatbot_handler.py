@@ -31,10 +31,14 @@ class ChatbotHandler:
             logging.info(f"Received query: {query}")
             
             formatted_history = ""
-            for i in range(0, len(history) - 1, 2):
-                if history[i]["role"] == "user" and history[i + 1]["role"] == "assistant":
-                    formatted_history += f"User: {history[i]['content']}\Agent: {history[i + 1]['content']}\n"
-            formatted_history += f"\nUser: {query}"
+
+            recent_history = history[-self.history_limit:] if len(history) > self.history_limit else history
+            for i in range(0, len(recent_history) - 1, 2):
+                if recent_history[i]["role"] == "user" and recent_history[i + 1]["role"] == "assistant":
+                    formatted_history += (
+                        f"User: {recent_history[i]['content']}\n"
+                        f"Assistant: {recent_history[i + 1]['content']}\n"
+                    )
 
             if query is not None:
                 partial_message = ""
@@ -51,9 +55,9 @@ class ChatbotHandler:
             yield "Sorry, there was an error processing your request."
     
 
-    def _get_recommendation_data(self, user_id, product_id):
+    def _get_recommendation_data(self, user_id):
         self.recommendation_engine = RecommendationHandler()
-        recommended_products = self.recommendation_engine.get_hybrid_recommendations(user_id=user_id, product_id=product_id)
+        recommended_products = self.recommendation_engine.get_user_based_recommendations(user_id=user_id)
             
         recommendation_str = ""
         for product in recommended_products:
@@ -71,16 +75,16 @@ class ChatbotHandler:
         """Retrieve knowledge baseed on query and intent."""
         knowledge = ""
         combined_query = query
-        filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query)
+        filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query, history)
         final_combined_query = query
-        rerank_feature = ""
+        # rerank_feature = ""
 
-        if 'cheap' in features:
-            rerank_feature = 'cheap'
-        elif 'expensive' in features:
-            rerank_feature = 'expensive'
+        # if 'cheap' in features:
+        #     rerank_feature = 'cheap'
+        # elif 'expensive' in features:
+        #     rerank_feature = 'expensive'
     
-        if (intent == "ask_without_product" and features == []) or (intent == "ask_for_recommendation" and features == [] and categories == []):
+        if (intent == "ask_without_product" and features == [] and categories == []):
             logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
@@ -89,7 +93,7 @@ class ChatbotHandler:
             for past_query in user_queries[:self.max_history_check]:
                 combined_queries.append(past_query)
                 combined_query = ", ".join(reversed(combined_queries))
-                _, past_intent, features, categories = self.filter_extractor.extract_info_from_query(past_query)
+                _, past_intent, features, categories = self.filter_extractor.extract_info_from_query(past_query, history)
                 logging.info(f"After appending, combined query: {combined_query}")
                
                 if past_intent == "ask_for_product":
@@ -107,13 +111,17 @@ class ChatbotHandler:
             knowledge =  self.offer_db.get_offers()
             return knowledge, intent, features
         
-        features_string = ", ".join(features)
-        knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, feature=rerank_feature, filters=filters)
-        if intent == "ask_for_recommendation" and (features == []):
+        elif intent == "gibberish" or intent == "greeting":
+            logging.info(f"Intent is '{intent}'")
+            return "", intent, []
+        
+        elif intent == "ask_for_recommendation":
             logging.info("Intent is 'ask_for_recommendation'")
-            if first_product:
-                product_id = first_product["product_id"]
-                knowledge = self._get_recommendation_data(int(user_id), int(product_id))
+            knowledge = self._get_recommendation_data(int(user_id))
+            return knowledge, intent, features
+        
+        features_string = ", ".join(features)
+        knowledge = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, filters=filters)
         return knowledge, intent, features
 
 

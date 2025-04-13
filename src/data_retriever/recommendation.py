@@ -81,13 +81,6 @@ class RecommendationHandler:
     def get_hybrid_recommendations(self, user_id, product_id):
         """
         Generate hybrid recommendations for a given user based on a specific product.
-        
-        Args:
-            user_id (int): The ID of the user for whom recommendations are generated.
-            product_id (int): The ID of the product to find similar items to. If None, only collaborative filtering is used.
-
-        Returns:
-            List[Dict]: A list of dictionaries containing recommended product details.
         """
         alpha = config['recommendation_system']['alpha']
         n = config['recommendation_system']['n']
@@ -149,5 +142,49 @@ class RecommendationHandler:
             })
 
         logging.info(f"Generated {len(recommended_products)} recommendations for user {user_id} based on product {product_id if product_id else 'N/A'}")
+        return recommended_products
+    
+    def get_user_based_recommendations(self, user_id):
+        """
+        Generate recommendations for a given user using user-based collaborative filtering.
+        """
+        n = config['recommendation_system']['n']
+
+        rated_products = self.ratings_data[self.ratings_data["user_id"] == user_id]["id"].values
+
+        user_based_scores = {}
+        if user_id in self.user_similarity_df.index:
+            similar_users = self.user_similarity_df[user_id].sort_values(ascending=False).index[1:6]
+            user_based_scores = self.user_item_matrix.loc[similar_users].mean().to_dict()
+        else:
+            logging.warning(f"User ID {user_id} not found in similarity index.")
+            return []
+
+        user_based_scores = {
+            pid: score for pid, score in user_based_scores.items()
+            if pid not in rated_products
+        }
+        top_n_products = sorted(user_based_scores.items(), key=lambda x: x[1], reverse=True)[:n]
+
+        recommended_products = []
+        for product_id, score in top_n_products:
+            product_row = self.products_data[self.products_data["id"] == product_id]
+            if product_row.empty:
+                logging.warning(f"Product ID {product_id} not found in dataset, skipping.")
+                continue
+
+            product_info = product_row.iloc[0]
+            recommended_products.append({
+                "id": product_id,
+                "title": product_info["title"],
+                "description": product_info["description"][:100] + "..." if len(product_info["description"]) > 100 else product_info["description"],
+                "price": product_info["price"],
+                "weight": product_info["weight"],
+                "image": product_info["image"],
+                "link": product_info["link"],
+                "score": round(score, 2)
+            })
+
+        logging.info(f"Generated {len(recommended_products)} user-based recommendations for user {user_id}")
         return recommended_products
 

@@ -78,6 +78,7 @@ class WeaviateHandler:
                     wvc.config.Property(
                         name="price",
                         data_type=wvc.config.DataType.NUMBER,
+                        vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
                         name="categories",
@@ -207,37 +208,37 @@ class WeaviateHandler:
 
             products_str.append(product_str)
         
-        self.db.connect()
+        # self.db.connect()
         
         
-        for product_id in product_ids_to_fetch:
-            offers = self.db.find_offers_by_product(product_id)
-            if offers:
-                offers_by_product[product_id] = offers
+        # for product_id in product_ids_to_fetch:
+        #     offers = self.db.find_offers_by_product(product_id)
+        #     if offers:
+        #         offers_by_product[product_id] = offers
         
-        self.db.close()
+        # self.db.close()
 
-        for product_id, offers in offers_by_product.items():
-            for offer in offers:
-                offer_id, offer_name, offer_price, _, _, offer_desc, _, _, _, _, product_list_json = offer
-                try:
-                    product_ids = eval(product_list_json)
-                except Exception as e:
-                    logging.error(f"Error processing product_list_json for offer_id {offer_id}: {e}")
-                    continue
+        # for product_id, offers in offers_by_product.items():
+        #     for offer in offers:
+        #         offer_id, offer_name, offer_price, _, _, offer_desc, _, _, _, _, product_list_json = offer
+        #         try:
+        #             product_ids = eval(product_list_json)
+        #         except Exception as e:
+        #             logging.error(f"Error processing product_list_json for offer_id {offer_id}: {e}")
+        #             continue
 
-                all_offers = self.add_offer_to_all_offers(offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers)
+        #         all_offers = self.add_offer_to_all_offers(offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers)
 
-        if all_offers:
-            offers_str = "Offers:\n"
-            for offer in all_offers.values():
-                offer_details = f"Offer: {offer['name']} - Price: {offer['price']}\n"
-                offer_details += f"Description: {offer['description']}\n"
-                for product in offer["products"]:
-                    offer_details += f"- {product['title']} (Image: {product['image']})\n"
-                offers_str += offer_details
-        else:
-            offers_str = "No current offers available for the matching products.\n"
+        # if all_offers:
+        #     offers_str = "Offers:\n"
+        #     for offer in all_offers.values():
+        #         offer_details = f"Offer: {offer['name']} - Price: {offer['price']}\n"
+        #         offer_details += f"Description: {offer['description']}\n"
+        #         for product in offer["products"]:
+        #             offer_details += f"- {product['title']} (Image: {product['image']})\n"
+        #         offers_str += offer_details
+        # else:
+        #     offers_str = "No current offers available for the matching products.\n"
 
         if products_str:
             result_str = "\n".join(products_str) + "\n\n" + offers_str
@@ -307,7 +308,7 @@ class WeaviateHandler:
             self.close()
 
 
-    def hybrid_search(self, query, feature="", alpha=0.5, limit=5, filters=None):
+    def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
         self.collection = self.client.collections.get(self.collection_name)
         
@@ -331,17 +332,14 @@ class WeaviateHandler:
                 return "No Product Available or Requested", {}
             
             reranked = RerankedResponse()
-            reranked_docs = reranked.rerank_results(query, documents, feature)
+            reranked_docs = reranked.rerank_results(query, documents)
             reranked.process_objects(reranked_docs, limit=limit)
-
-            first_product = reranked_docs[0] if reranked_docs else None
             
-            return self._format_results(reranked),first_product
+            return self._format_results(reranked)
             
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
             raise
-
 
 
     def close(self):
