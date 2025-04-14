@@ -49,7 +49,3 @@ groq:
 database:
   name: "./database/offers_database.db"
   history_name: "./database/history_database.db"
-
-recommendation_system:
-  alpha: 0.7
-  n: 5

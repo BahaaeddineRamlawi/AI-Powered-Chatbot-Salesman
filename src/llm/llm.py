@@ -104,7 +104,7 @@ class LLMHandler:
         )
         
 
-    def process_with_llm(self, user_query, search_results, history, intent, features):
+    def process_with_llm(self, user_query, search_results, history, intent, features, offer_suggestion_enabled):
         try:
             logging.info(f"Processing query: {user_query}")
 
@@ -114,7 +114,8 @@ class LLMHandler:
                 search_results=search_results,
                 history=history,
                 intent=intent,
-                features=features
+                features=features,
+                offer_suggestion_enabled=offer_suggestion_enabled
             )
 
             logging.info("Response generated successfully")

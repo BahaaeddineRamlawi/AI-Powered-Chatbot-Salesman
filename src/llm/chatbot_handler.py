@@ -12,8 +12,11 @@ class ChatbotHandler:
             self.llmhandler = LLMHandler()
             self.filter_extractor = QueryInfoExtractor()
             self.offer_db = OffersDatabase()
+            self.recommendation_engine = RecommendationHandler()
             self.history_limit = 8
-            self.max_history_check = 3 
+            self.max_history_check = 3
+            self.product_query_counter = 0
+            self.offer_suggestion_enabled = False
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -29,6 +32,17 @@ class ChatbotHandler:
         try:
             knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=2001)
             logging.info(f"Received query: {query}")
+
+            
+            product_intents = {"ask_for_product", "ask_for_similar_items", "ask_without_product"}
+
+            if intent in product_intents:
+                self.product_query_counter += 1
+                if self.product_query_counter == 3:
+                    self.offer_suggestion_enabled = True
+                    self.product_query_counter = 0
+                else:
+                    self.offer_suggestion_enabled = False
             
             formatted_history = ""
 
@@ -42,9 +56,8 @@ class ChatbotHandler:
 
             if query is not None:
                 partial_message = ""
-
                 rag_prompt = self.llmhandler.process_with_llm(
-                    query, knowledge, formatted_history, intent, features
+                    query, knowledge, formatted_history, intent, features, self.offer_suggestion_enabled
                 )
 
                 for response in self.llmhandler.stream(rag_prompt):
@@ -55,10 +68,15 @@ class ChatbotHandler:
             yield "Sorry, there was an error processing your request."
     
 
-    def _get_recommendation_data(self, user_id):
-        self.recommendation_engine = RecommendationHandler()
-        recommended_products = self.recommendation_engine.get_user_based_recommendations(user_id=user_id)
-            
+    def _get_recommendation_data(self, intent, user_id=None, product_id=None):
+        """Get recommendations based on the intent"""
+        if intent == "ask_for_similar_items" and product_id:
+            recommended_products = self.recommendation_engine.get_similar_products(product_id=int(product_id))
+        elif intent == "ask_for_recommendation" and user_id:
+            recommended_products = self.recommendation_engine.get_user_based_recommendations(user_id=int(user_id))
+        else:
+            return "Insufficient data to generate recommendations."
+
         recommendation_str = ""
         for product in recommended_products:
             recommendation_str += f"Title: {product['title']}\n"
@@ -69,7 +87,7 @@ class ChatbotHandler:
             recommendation_str += f"Image: {product['image']}\n\n"            
 
         return recommendation_str
-    
+
 
     def _get_knowledge(self, query, history,user_id):
         """Retrieve knowledge baseed on query and intent."""
@@ -77,14 +95,8 @@ class ChatbotHandler:
         combined_query = query
         filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query, history)
         final_combined_query = query
-        # rerank_feature = ""
-
-        # if 'cheap' in features:
-        #     rerank_feature = 'cheap'
-        # elif 'expensive' in features:
-        #     rerank_feature = 'expensive'
     
-        if (intent == "ask_without_product" and features == [] and categories == []):
+        if (intent == "ask_without_product" and features == [] and categories == []) or (intent == "ask_for_similar_items"):
             logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
@@ -117,11 +129,17 @@ class ChatbotHandler:
         
         elif intent == "ask_for_recommendation":
             logging.info("Intent is 'ask_for_recommendation'")
-            knowledge = self._get_recommendation_data(int(user_id))
+            knowledge = self._get_recommendation_data(intent, user_id=user_id)
             return knowledge, intent, features
         
         features_string = ", ".join(features)
-        knowledge = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, filters=filters)
+        knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, filters=filters)
+        if first_product:
+            product_id = first_product["product_id"]
+        if intent == "ask_for_similar_items":
+            logging.info("Intent is 'ask_for_similar_items'")
+            knowledge = self._get_recommendation_data(intent, product_id=product_id)
+            return knowledge, intent, features
         return knowledge, intent, features
 
 

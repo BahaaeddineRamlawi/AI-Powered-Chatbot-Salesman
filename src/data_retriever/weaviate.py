@@ -178,9 +178,9 @@ class WeaviateHandler:
     def _format_results(self, response):
         """Format search results into a structured response as a string."""
         products_str = []
-        all_offers = {}
+        # all_offers = {}
         product_ids_to_fetch = []
-        offers_by_product = {}
+        # offers_by_product = {}
         offers_str = ""
 
         for index, obj in enumerate(response.objects, 1):
@@ -245,45 +245,45 @@ class WeaviateHandler:
         else:
             result_str = "No matching items found.\n"
 
-        logging.info(f"Found {len(products_str)} products and {len(all_offers)} offers.")
+        logging.info(f"Found {len(products_str)} products.")
         return result_str
     
     
-    def add_offer_to_all_offers(self, offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers):
-        """Adds the offer and its associated products to the all_offers dictionary"""
-        try:
-            if offer_id not in all_offers:
-                all_offers[offer_id] = {
-                    "name": offer_name,
-                    "price": offer_price,
-                    "description": offer_desc,
-                    "products": []
-                }
+    # def add_offer_to_all_offers(self, offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers):
+    #     """Adds the offer and its associated products to the all_offers dictionary"""
+    #     try:
+    #         if offer_id not in all_offers:
+    #             all_offers[offer_id] = {
+    #                 "name": offer_name,
+    #                 "price": offer_price,
+    #                 "description": offer_desc,
+    #                 "products": []
+    #             }
 
-            for pid in product_ids:
-                logging.info(f"Fetching product details for Product ID: {pid}")
+    #         for pid in product_ids:
+    #             logging.info(f"Fetching product details for Product ID: {pid}")
 
-                product_response = self.collection.query.fetch_objects(
-                    filters=Filter.by_property("product_id").equal(pid)
-                )
+    #             product_response = self.collection.query.fetch_objects(
+    #                 filters=Filter.by_property("product_id").equal(pid)
+    #             )
 
-                if product_response.objects:
-                    product_obj = product_response.objects[0].properties
-                    product_image = product_obj.get("image", "none")
-                    product_title = product_obj.get("title", "No Title")
+    #             if product_response.objects:
+    #                 product_obj = product_response.objects[0].properties
+    #                 product_image = product_obj.get("image", "none")
+    #                 product_title = product_obj.get("title", "No Title")
 
-                    all_offers[offer_id]["products"].append({
-                        "image": product_image,
-                        "title": product_title
-                    })
+    #                 all_offers[offer_id]["products"].append({
+    #                     "image": product_image,
+    #                     "title": product_title
+    #                 })
 
 
-            logging.info(f"Offer {offer_id} processing complete.")
-            return all_offers
+    #         logging.info(f"Offer {offer_id} processing complete.")
+    #         return all_offers
 
-        except Exception as e:
-            logging.error(f"Error adding offer {offer_id}: {e}", exc_info=True)
-            return all_offers
+    #     except Exception as e:
+    #         logging.error(f"Error adding offer {offer_id}: {e}", exc_info=True)
+    #         return all_offers
 
 
     def process_and_store_products(self):
@@ -334,8 +334,10 @@ class WeaviateHandler:
             reranked = RerankedResponse()
             reranked_docs = reranked.rerank_results(query, documents)
             reranked.process_objects(reranked_docs, limit=limit)
+
+            first_product = reranked_docs[0] if reranked_docs else None
             
-            return self._format_results(reranked)
+            return self._format_results(reranked), first_product
             
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")
