@@ -130,9 +130,8 @@ class QueryInfoExtractor:
                 weaviate_operator = operator_map[operator]
                 filter_condition = getattr(Filter.by_property(path), weaviate_operator)(float(value_number))
                 filters &= filter_condition
-            elif path == "categories" and operator in operator_map:
-                weaviate_operator = operator_map[operator]
-                filter_condition = getattr(Filter.by_property("categories"), weaviate_operator)(value_string)
+            elif path == "categories":
+                filter_condition = Filter.by_property("categories").contains_any([value_string])
                 filters &= filter_condition
 
         logging.info("Filter Generated Successfully")

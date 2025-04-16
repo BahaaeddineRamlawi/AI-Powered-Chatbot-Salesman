@@ -2,14 +2,12 @@ import pandas as pd
 import weaviate
 from weaviate.classes.config import Configure
 import weaviate.classes as wvc
-from weaviate.classes.query import Filter
-from flashrank import Ranker
+import json
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from src.utils import logging, config
-from .offers import OffersDatabase
 from .reranker import RerankedResponse
 
 class WeaviateHandler:
@@ -19,14 +17,9 @@ class WeaviateHandler:
         """Initialize Weaviate connection, model, and SQLite database."""
         try:
             logging.info("Initializing WeaviateSearch...")
-
             self.collection_name = config["weaviate"]["collection_name"]
-            self.db_name = config["database"]["name"]
 
-            self.db = OffersDatabase()
-            logging.info("Database connection established.")
-
-            self.ranker = Ranker()
+            self.reranked = RerankedResponse()
             logging.info("Ranker initialized.")
 
             self.client = weaviate.connect_to_local()
@@ -82,7 +75,7 @@ class WeaviateHandler:
                     ),
                     wvc.config.Property(
                         name="categories",
-                        data_type=wvc.config.DataType.TEXT,
+                        data_type=wvc.config.DataType.TEXT_ARRAY,
                         vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
@@ -130,13 +123,14 @@ class WeaviateHandler:
             for start in range(0, len(df), BATCH_SIZE):
                 batch = df.iloc[start:start + BATCH_SIZE]
                 for _, row in batch.iterrows():
+                    categories = None if pd.isna(row["categories"]) else [cat.strip() for cat in row["categories"].split(",")]
                     product = {
                         "product_id": None if pd.isna(row["id"]) else str(row["id"]),
                         "title": None if pd.isna(row["title"]) else str(row["title"]),
                         "description": None if pd.isna(row["description"]) else str(row["description"]),
                         "link": None if pd.isna(row["link"]) else str(row["link"]),
                         "price": None if pd.isna(row["price"]) else row["price"],
-                        "categories": None if pd.isna(row["categories"]) else row["categories"],
+                        "categories": categories,
                         "rating": None if pd.isna(row["rating"]) else row["rating"],
                         "weight": None if pd.isna(row["weight"]) else row["weight"],
                         "image": None if pd.isna(row["image"]) else row["image"],
@@ -176,114 +170,36 @@ class WeaviateHandler:
 
 
     def _format_results(self, response):
-        """Format search results into a structured response as a string."""
-        products_str = []
-        # all_offers = {}
-        product_ids_to_fetch = []
-        # offers_by_product = {}
-        offers_str = ""
+        """Format search results into a structured response as a single string."""
+        result = ""
 
         for index, obj in enumerate(response.objects, 1):
-            product_id = obj.properties.get("product_id", "Unknown")
             title = obj.properties.get("title", "No Title")
             link = obj.properties.get("link", "No Link")
             categories = obj.properties.get("categories", "No Category")
-            description = obj.properties.get("description", "No Description")
+            description = obj.properties.get("description", "No Description").rstrip()
             image_url = obj.properties.get("image", "none")
             price = obj.properties.get("price", "N/A")
             weight = obj.properties.get("weight", "N/A")
             rating = obj.properties.get("rating", "N/A")
 
-            product_ids_to_fetch.append(product_id)
+            result += (
+                f"Product {index}\n"
+                f"Title: {title}\n"
+                f"Link: {link}\n"
+                f"Categories: {categories}\n"
+                f"Description: {description}\n"
+                f"Price: ${price}\n"
+                f"Weight: {weight}\n"
+                f"Rating: {rating}\n"
+                f"Image URL: {image_url}\n\n"
+            )
 
-            product_str = f"Product {index}\n"
-            product_str += f"Title: {title}\n"
-            product_str += f"Link: {link}\n"
-            product_str += f"Categories: {categories}\n"
-            product_str += f"Description: {description}\n"
-            product_str += f"Price: ${price}\n"
-            product_str += f"Weight: {weight}\n"
-            product_str += f"Rating: {rating}\n"
-            product_str += f"Image URL: {image_url}\n"
+        if not result:
+            return "No matching items found.\n"
 
-            products_str.append(product_str)
-        
-        # self.db.connect()
-        
-        
-        # for product_id in product_ids_to_fetch:
-        #     offers = self.db.find_offers_by_product(product_id)
-        #     if offers:
-        #         offers_by_product[product_id] = offers
-        
-        # self.db.close()
-
-        # for product_id, offers in offers_by_product.items():
-        #     for offer in offers:
-        #         offer_id, offer_name, offer_price, _, _, offer_desc, _, _, _, _, product_list_json = offer
-        #         try:
-        #             product_ids = eval(product_list_json)
-        #         except Exception as e:
-        #             logging.error(f"Error processing product_list_json for offer_id {offer_id}: {e}")
-        #             continue
-
-        #         all_offers = self.add_offer_to_all_offers(offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers)
-
-        # if all_offers:
-        #     offers_str = "Offers:\n"
-        #     for offer in all_offers.values():
-        #         offer_details = f"Offer: {offer['name']} - Price: {offer['price']}\n"
-        #         offer_details += f"Description: {offer['description']}\n"
-        #         for product in offer["products"]:
-        #             offer_details += f"- {product['title']} (Image: {product['image']})\n"
-        #         offers_str += offer_details
-        # else:
-        #     offers_str = "No current offers available for the matching products.\n"
-
-        if products_str:
-            result_str = "\n".join(products_str) + "\n\n" + offers_str
-        else:
-            result_str = "No matching items found.\n"
-
-        logging.info(f"Found {len(products_str)} products.")
-        return result_str
-    
-    
-    # def add_offer_to_all_offers(self, offer_id, offer_name, offer_price, offer_desc, product_ids, all_offers):
-    #     """Adds the offer and its associated products to the all_offers dictionary"""
-    #     try:
-    #         if offer_id not in all_offers:
-    #             all_offers[offer_id] = {
-    #                 "name": offer_name,
-    #                 "price": offer_price,
-    #                 "description": offer_desc,
-    #                 "products": []
-    #             }
-
-    #         for pid in product_ids:
-    #             logging.info(f"Fetching product details for Product ID: {pid}")
-
-    #             product_response = self.collection.query.fetch_objects(
-    #                 filters=Filter.by_property("product_id").equal(pid)
-    #             )
-
-    #             if product_response.objects:
-    #                 product_obj = product_response.objects[0].properties
-    #                 product_image = product_obj.get("image", "none")
-    #                 product_title = product_obj.get("title", "No Title")
-
-    #                 all_offers[offer_id]["products"].append({
-    #                     "image": product_image,
-    #                     "title": product_title
-    #                 })
-
-
-    #         logging.info(f"Offer {offer_id} processing complete.")
-    #         return all_offers
-
-    #     except Exception as e:
-    #         logging.error(f"Error adding offer {offer_id}: {e}", exc_info=True)
-    #         return all_offers
+        logging.info("Result formatted successfully")
+        return result
 
 
     def process_and_store_products(self):
@@ -331,13 +247,13 @@ class WeaviateHandler:
                 logging.info("Hybrid search returned no results. Skipping reranking.")
                 return "No Product Available or Requested", {}
             
-            reranked = RerankedResponse()
-            reranked_docs = reranked.rerank_results(query, documents)
-            reranked.process_objects(reranked_docs, limit=limit)
+            
+            reranked_docs = self.reranked.rerank_results(query, documents)
+            self.reranked.process_objects(reranked_docs, limit=limit)
 
             first_product = reranked_docs[0] if reranked_docs else None
             
-            return self._format_results(reranked), first_product
+            return self._format_results(self.reranked), first_product
             
         except Exception as e:
             logging.error(f"Hybrid search failed: {e}")

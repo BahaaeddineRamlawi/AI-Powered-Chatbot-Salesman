@@ -25,7 +25,11 @@ Query:
 Determine the user's intent using the query in context of the conversation history. Choose one:
 
  - "greeting" - Simple greetings (e.g., "Hi", "Hello")
- - "feedback" - Praise or criticism (e.g., "Great", "Useless")
+- "feedback" → When the user provides an opinion or review about the store, products, or service, including **praise, complaints, or suggestions**, **positive or negative**.
+    Examples:  
+      - Positive: *"I love this store!"*, *"That is great!"*, *"Amazing service."*, *"Thank you, you are Great"* 
+      - Negative: *"I hate this."*, *"You are useless."*, *"Terrible experience."*, *"Bad store."*  
+    **Even single-word criticisms count as feedback** (e.g., *"Useless"*, *"Bad"*, *"Terrible"*, *"Nice"*, *"Great"*, *"Awesome"*, *"WOW"*).
  - "gibberish" - Random or unintelligible text (e.g., "dfjksd")
  - "thanking" - Gratitude or thanks (e.g., "Thanks a lot")
  - "ask_for_unrelated_product" - Asking for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets)

@@ -2,18 +2,16 @@ import pandas as pd
 import sqlite3
 import json
 from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
 from src.utils import logging, config
 
 class RecommendationHandler:
     def __init__(self):
         self.db_path = config['database']['history_name']
         self.products_data = pd.read_csv(config["input_file"]["cleaned_products_data_path"])
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
         self._load_ratings_from_db()
         self._prepare_data()
         self._compute_user_similarity()
-        self._compute_content_similarity()
+        self._compute_item_similarity()
 
 
     def _load_ratings_from_db(self):
@@ -62,26 +60,14 @@ class RecommendationHandler:
         )
 
 
-    def _compute_content_similarity(self):
-        logging.info("Computing content-based similarity using sentence embeddings...")
-        
-        self.products_data["text_features"] = (
-            self.products_data["title"].fillna("") + " " +
-            self.products_data["description"].fillna("") + " " +
-            self.products_data["categories"].fillna("")
+    def _compute_item_similarity(self):
+        logging.info("Computing item-item collaborative similarity...")
+        self.item_similarity = cosine_similarity(self.user_item_matrix.T)
+        self.item_similarity_df = pd.DataFrame(
+            self.item_similarity,
+            index=self.user_item_matrix.columns,
+            columns=self.user_item_matrix.columns
         )
-
-        product_texts = self.products_data["text_features"].tolist()
-        embeddings = self.model.encode(product_texts, normalize_embeddings=True)
-
-        self.content_sim_matrix = cosine_similarity(embeddings, embeddings)
-
-        self.product_id_to_index = {
-            product_id: idx
-            for idx, product_id in enumerate(self.products_data["id"].values)
-        }
-
-        logging.info("Content-based similarity computation complete.")
 
 
     def get_user_based_recommendations(self, user_id, top_k=10):
@@ -103,36 +89,23 @@ class RecommendationHandler:
             key=lambda x: x[1], reverse=True
         )[:top_k]
         return self._format_recommendations(top_n_products)
+    
 
-
-    def get_similar_products(self, product_id, top_k=10):
-        if product_id not in self.product_id_to_index:
-            logging.error(f"Product ID {product_id} not found in product dataset.")
+    def get_item_based_recommendations(self, product_id, top_k=5):
+        if product_id not in self.item_similarity_df.index:
+            logging.error(f"Product ID {product_id} not found in item-item similarity index.")
             return []
-        logging.info(f"product_id received: {product_id}")
 
-        product_idx = self.product_id_to_index[product_id]
-        similarity_scores = list(enumerate(self.content_sim_matrix[product_idx]))
+        similarity_scores = self.item_similarity_df[product_id].drop(index=product_id)
+        top_similar = similarity_scores.sort_values(ascending=False).head(top_k)
 
-        sorted_scores = sorted(
-            [(idx, score) for idx, score in similarity_scores if idx != product_idx],
-            key=lambda x: x[1],
-            reverse=True
-        )[:top_k]
-
-        product_score_pairs = [
-            (self.products_data.iloc[idx]["id"], score)
-            for idx, score in sorted_scores
-        ]
-
-        similar_products = self._format_recommendations(product_score_pairs)
-        logging.info(f"Found {len(similar_products)} similar products for product ID {product_id}")
-        return similar_products
+        product_score_pairs = list(top_similar.items())
+        return self._format_recommendations(product_score_pairs)
 
 
     def _format_recommendations(self, recommendations):
-        result = []
-        for product_id, score in recommendations:
+        result = ""
+        for i, (product_id, score) in enumerate(recommendations, 1):
             product_row = self.products_data[self.products_data["id"] == product_id]
             if product_row.empty:
                 logging.warning(f"Product ID {product_id} not found in dataset, skipping.")
@@ -141,14 +114,21 @@ class RecommendationHandler:
             logging.debug(f"Recommended product: {product_id}, Score: {score}")
 
             product_info = product_row.iloc[0]
-            result.append({
-                "id": product_id,
-                "title": product_info["title"],
-                "description": product_info["description"][:100] + "..." if len(product_info["description"]) > 100 else product_info["description"],
-                "price": product_info["price"],
-                "weight": product_info["weight"],
-                "image": product_info["image"],
-                "link": product_info["link"],
-                "score": round(score, 2)
-            })
+            description = product_info["description"].rstrip()
+            result += (
+                f"Product {i}\n"
+                f"Title: {product_info['title']}\n"
+                f"Link: {product_info['link']}\n"
+                f"Description: {description}\n"
+                f"Categories: {product_info['categories']}\n"
+                f"Price: ${product_info['price']}\n"
+                f"Weight: {product_info['weight']}\n"
+                f"Rating: {round(score, 2)}\n"
+                f"Image URL: {product_info['image']}\n\n"
+            )
+
+        if not result:
+            return "No recommended products found.\n"
         return result
+
+

@@ -49,3 +49,6 @@ groq:
 database:
   name: "./database/offers_database.db"
   history_name: "./database/history_database.db"
+
+website:
+  name: "https://www.alrifai.com/shop"

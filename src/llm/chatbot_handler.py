@@ -17,6 +17,7 @@ class ChatbotHandler:
             self.max_history_check = 3
             self.product_query_counter = 0
             self.offer_suggestion_enabled = False
+            self.similarity_suggestion_enabled = False
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -36,13 +37,16 @@ class ChatbotHandler:
             
             product_intents = {"ask_for_product", "ask_for_similar_items", "ask_without_product"}
 
-            if intent in product_intents:
+            if intent in product_intents and self.product_query_counter <= 5:
                 self.product_query_counter += 1
                 if self.product_query_counter == 3:
                     self.offer_suggestion_enabled = True
-                    self.product_query_counter = 0
+                elif self.product_query_counter == 5:
+                    self.similarity_suggestion_enabled = True
                 else:
                     self.offer_suggestion_enabled = False
+                    self.similarity_suggestion_enabled = False
+                    
             
             formatted_history = ""
 
@@ -56,8 +60,9 @@ class ChatbotHandler:
 
             if query is not None:
                 partial_message = ""
+                print(knowledge)
                 rag_prompt = self.llmhandler.process_with_llm(
-                    query, knowledge, formatted_history, intent, features, self.offer_suggestion_enabled
+                    query, knowledge, formatted_history, intent, features, self.offer_suggestion_enabled, self.similarity_suggestion_enabled
                 )
 
                 for response in self.llmhandler.stream(rag_prompt):
@@ -71,22 +76,11 @@ class ChatbotHandler:
     def _get_recommendation_data(self, intent, user_id=None, product_id=None):
         """Get recommendations based on the intent"""
         if intent == "ask_for_similar_items" and product_id:
-            recommended_products = self.recommendation_engine.get_similar_products(product_id=int(product_id))
+            return self.recommendation_engine.get_similar_products(product_id=int(product_id))
         elif intent == "ask_for_recommendation" and user_id:
-            recommended_products = self.recommendation_engine.get_user_based_recommendations(user_id=int(user_id))
+            return self.recommendation_engine.get_user_based_recommendations(user_id=int(user_id))
         else:
-            return "Insufficient data to generate recommendations."
-
-        recommendation_str = ""
-        for product in recommended_products:
-            recommendation_str += f"Title: {product['title']}\n"
-            recommendation_str += f"Description: {product['description']}\n"
-            recommendation_str += f"Price: {product['price']}\n"
-            recommendation_str += f"Weight: {product['weight']}\n"
-            recommendation_str += f"Link: {product['link']}\n"
-            recommendation_str += f"Image: {product['image']}\n\n"            
-
-        return recommendation_str
+            return "Insufficient data to generate recommendations."          
 
 
     def _get_knowledge(self, query, history,user_id):
@@ -123,7 +117,7 @@ class ChatbotHandler:
             knowledge =  self.offer_db.get_offers()
             return knowledge, intent, features
         
-        elif intent == "gibberish" or intent == "greeting":
+        elif intent in ["gibberish", "greeting", "feedback"]:
             logging.info(f"Intent is '{intent}'")
             return "", intent, []
         
