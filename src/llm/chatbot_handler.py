@@ -35,7 +35,7 @@ class ChatbotHandler:
             logging.info(f"Received query: {query}")
 
             
-            product_intents = {"ask_for_product", "ask_for_similar_items", "ask_without_product"}
+            product_intents = {"ask_for_product", "ask_for_recommendation", "ask_without_product"}
 
             if intent in product_intents and self.product_query_counter <= 5:
                 self.product_query_counter += 1
@@ -60,7 +60,6 @@ class ChatbotHandler:
 
             if query is not None:
                 partial_message = ""
-                print(knowledge)
                 rag_prompt = self.llmhandler.process_with_llm(
                     query, knowledge, formatted_history, intent, features, self.offer_suggestion_enabled, self.similarity_suggestion_enabled
                 )
@@ -73,11 +72,9 @@ class ChatbotHandler:
             yield "Sorry, there was an error processing your request."
     
 
-    def _get_recommendation_data(self, intent, user_id=None, product_id=None):
+    def _get_recommendation_data(self, intent, user_id=None):
         """Get recommendations based on the intent"""
-        if intent == "ask_for_similar_items" and product_id:
-            return self.recommendation_engine.get_similar_products(product_id=int(product_id))
-        elif intent == "ask_for_recommendation" and user_id:
+        if intent == "ask_for_recommendation" and user_id:
             return self.recommendation_engine.get_user_based_recommendations(user_id=int(user_id))
         else:
             return "Insufficient data to generate recommendations."          
@@ -90,7 +87,7 @@ class ChatbotHandler:
         filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query, history)
         final_combined_query = query
     
-        if (intent == "ask_without_product" and features == [] and categories == []) or (intent == "ask_for_similar_items"):
+        if (intent == "ask_without_product" and features == [] and categories == []) or (intent == "follow_up"):
             logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
 
             combined_queries = [query]
@@ -128,12 +125,12 @@ class ChatbotHandler:
         
         features_string = ", ".join(features)
         knowledge, first_product = self.search_engine.hybrid_search(query=final_combined_query + ". " + features_string, filters=filters)
-        if first_product:
-            product_id = first_product["product_id"]
-        if intent == "ask_for_similar_items":
-            logging.info("Intent is 'ask_for_similar_items'")
-            knowledge = self._get_recommendation_data(intent, product_id=product_id)
-            return knowledge, intent, features
+        # if first_product:
+        #     product_id = first_product["product_id"]
+        # if intent == "ask_for_similar_items":
+        #     logging.info("Intent is 'ask_for_similar_items'")
+        #     knowledge = self._get_recommendation_data(intent, product_id=product_id)
+        #     return knowledge, intent, features
         return knowledge, intent, features
 
 

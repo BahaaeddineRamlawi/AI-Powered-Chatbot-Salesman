@@ -47,7 +47,7 @@ class OffersDatabase:
         except sqlite3.Error as e:
             logging.error(f"Error creating table: {e}")
 
-    def insert_data(self, csv_file=config['input_file']['offers_data_path']):
+    def insert_data(self, csv_file=config['data_file']['offers_data_path']):
         """Insert data from a CSV file into the database."""
         try:
             df = pd.read_csv(csv_file)

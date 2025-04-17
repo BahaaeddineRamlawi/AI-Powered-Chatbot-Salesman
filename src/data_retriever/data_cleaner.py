@@ -88,7 +88,7 @@ class ProductDataCleaner:
 
             df = self.clean_data(df)
 
-            cleaned_file_path = config['output_file']['cleaned_products_data_path']
+            cleaned_file_path = config['data_file']['cleaned_products_data_path']
             df.to_csv(cleaned_file_path, index=False, encoding="utf-8", na_rep="NaN")
 
             logging.info(f"Cleaned data saved to {cleaned_file_path}")

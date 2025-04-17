@@ -24,7 +24,7 @@ Query:
 ### Step 1: Intent Extraction
 Determine the user's intent using the query in context of the conversation history. Choose one:
 
- - "greeting" - Simple greetings (e.g., "Hi", "Hello")
+- "greeting" - Simple greetings (e.g., "Hi", "Hello")
 - "feedback" → When the user provides an opinion or review about the store, products, or service, including **praise, complaints, or suggestions**, **positive or negative**.
     Examples:  
       - Positive: *"I love this store!"*, *"That is great!"*, *"Amazing service."*, *"Thank you, you are Great"* 
@@ -38,7 +38,7 @@ Determine the user's intent using the query in context of the conversation histo
  - "ask_for_product" - Requests about a specific product, feature, or category (e.g., "I want almonds", "Do you have chocolate?")
  - "ask_for_offers" - Asks explicitly or implicitly about deals, discounts, or current promotions, even if phrased as a recommendation (e.g., "What offers do you recommend?", "Show me your best deals")
  - "ask_for_recommendation" - Requests product suggestions, asks for help deciding (e.g., "What do you recommend?")
- - "ask_for_similar_items" – Requests alternatives to a previous product (e.g., "Show me more like this", "Do you have anything similar?")
+ - "follow_up" - A follow-up that clearly refers to a previous message or product already discussed, often using words like "this", "that", "it", "more about it", "the second one", etc.
  - "other" - 	Anything that doesn’t fit the above
  
 ### Step 2: Filter Extraction
@@ -46,14 +46,16 @@ From the query, extract filters and intent in the following JSON format:
 [
     {{  "path": "intent", "valueString": "INTENT" }},
     {{  "path": "rating", "operator": "GreaterThan", "valueNumber": FLOAT }},
+    {{  "path": "price", "operator": "LessThan", "valueNumber": FLOAT }},
     {{  "path": "features", "valueString": "FOOD_FEATURE" }}
     {{  "path": "categories", "valueString": "CATEGORY" }}
 ]
 
 Only include one general category if it is clearly stated from the predefined list.
 Include only filters and features that are clearly stated or strongly implied in the current query.
-Only include rating filters when it is clearly mentioned in the query.
+Only include rating filters when it is clearly mentioned in the current query only.
     Avoid vague conditions like rating > 0
+Only include price filters when it is clearly mentioned in the current query only.
 
 ### Example interactions:
  - User: 'I have high blood pressure, What product do you have for me?'

@@ -1,7 +1,7 @@
 logging:
   logs_dir: "./logs"
 
-input_file:
+data_file:
   products_data_path: "./assets/CSVs/products.csv"
   offers_data_path: "./assets/CSVs/offers.csv"
   cleaned_products_data_path: "./assets/CSVs/cleaned_products.csv"
@@ -11,9 +11,6 @@ prompt_templates:
   main_prompt_template_path: "./assets/templates/main_prompt_template.txt"
   filter_and_intent_prompt_template_path: "./assets/templates/filter_and_intent_prompt_template.txt"
   greeting_prompt_template_path: "./assets/templates/greeting_template.txt"
-
-output_file:
-  cleaned_products_data_path: "./assets/cleaned_products.csv"
 
 weaviate:
   collection_name: "Product"

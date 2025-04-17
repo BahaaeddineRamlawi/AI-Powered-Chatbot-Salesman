@@ -5,8 +5,6 @@ from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 import os
-import requests
-import json
 
 from src.utils import logging, config
 

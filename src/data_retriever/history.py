@@ -43,7 +43,7 @@ class UserHistoryDatabase:
     def insert_data(self):
         """Insert user product ratings as a JSON list of (product_id, rating, timestamp) pairs."""
         try:
-            df = pd.read_csv(config['input_file']['user_rating_datapath'])
+            df = pd.read_csv(config['data_file']['user_rating_datapath'])
 
             required_columns = {"user_id", "product_id", "rating"}
             if not required_columns.issubset(df.columns):

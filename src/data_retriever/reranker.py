@@ -1,5 +1,4 @@
 from flashrank import Ranker, RerankRequest
-from typing import Any, Dict, List
 from src.utils import logging
 
 class RerankedResponse:
@@ -24,7 +23,7 @@ class RerankedResponse:
 
     def rerank_results(self, query, documents):
         """
-        Rerank search results using FlashRank
+        Rerank search results using FlashRank, handling variants properly.
         """
         try:
             rerank_input = RerankRequest(
@@ -36,30 +35,36 @@ class RerankedResponse:
                             doc.get('description', ''),
                             " ".join(doc.get('categories', [])) if isinstance(doc.get('categories'), list) else doc.get('categories', '')
                         ])).strip(),
-                        "id": doc.get('product_id', '')
+                        "id": f"{doc.get('product_id', '')}_{doc.get('weight', '').strip()}"
                     } for doc in documents
                 ]
             )
-            
+
             reranked_results = self.ranker.rerank(rerank_input)
-            
+
             reranked_docs = []
             for ranked_result in reranked_results:
+                reranked_id = ranked_result.get('id')
+                if "_" in reranked_id:
+                    product_id, weight = reranked_id.split("_", 1)
+                else:
+                    product_id, weight = reranked_id, None
+
                 matching_doc = next(
-                    (doc for doc in documents if 
-                     ranked_result.get('id') == doc.get('product_id')), 
+                    (doc for doc in documents
+                     if doc.get('product_id') == product_id and doc.get('weight', '').strip() == weight),
                     None
                 )
-                
+
                 if matching_doc:
                     matching_doc['rerank_score'] = ranked_result.get('score', 0)
                     reranked_docs.append(matching_doc)
-            
+
             if not reranked_docs:
                 reranked_docs = documents
 
             return reranked_docs
-        
+
         except Exception as e:
             logging.error(f"Reranking failed: {e}")
             return documents

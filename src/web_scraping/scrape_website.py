@@ -1,87 +1,62 @@
 import requests
 from bs4 import BeautifulSoup
 import csv
-import os
 import re
 import time
-
 from src.utils import logging, config
 
-start_time = time.time()
-shop_url = config["website"]["name"]
-all_products = []
 
-page = 1
+class ProductScraper:
+    def __init__(self):
+        self.shop_url = config["website"]["name"]
+        self.all_products = []
+        self.start_time = time.time()
 
-def extract_weight_from_soup(soup, fallback_text):
-    try:
-        def filter_kg_g(text):
-            return ', '.join(re.findall(r'\b\d+(?:\.\d+)?\s?(?:kg|g)\b', text, flags=re.IGNORECASE))
 
-        # Priority 1: Check known weight-related <select> elements
-        for select_id in ['sold-and-packed-in', 'packed-in', 'size']:
-            select = soup.find('select', id=select_id)
-            if select:
-                options = select.find_all('option')
-                weights = [
-                    filter_kg_g(opt.text.strip())
-                    for opt in options
-                    if opt.get('value') and 'choose an option' not in opt.text.lower()
-                ]
-                weights = [w for w in weights if w]  # Remove empty strings
-                if weights:
-                    return ', '.join(weights)
+    def run(self):
+        page = 1
+        while True:
+            url = f"{self.shop_url}/page/{page}/" if page > 1 else self.shop_url
+            logging.info(f"Fetching: {url}")
+            try:
+                response = requests.get(url)
+                response.encoding = 'utf-8'
+                response.raise_for_status()
+            except requests.RequestException as e:
+                logging.warning(f"Page fetch failed at {url}: {e}")
+                break
 
-        # Priority 2: Check fallback text for SOLD IN
-        sold_in_match = re.search(r"SOLD IN:\s*(.*?)(?:\n|$)", fallback_text, re.IGNORECASE)
-        if sold_in_match:
-            sold_in_text = sold_in_match.group(1)
-            filtered = filter_kg_g(sold_in_text)
-            if filtered:
-                return filtered
-    except Exception as e:
-        logging.error(f"Weight extraction error: {e}")
-    return 'N/A'
+            soup = BeautifulSoup(response.text, 'html.parser')
+            products = soup.find_all(['li', 'div'], class_='product')
 
-while True:
-    url = f"{shop_url}/page/{page}/" if page > 1 else shop_url
-    logging.info(f"Fetching: {url}")
+            if not products:
+                logging.info(f"No products found on page {page}. Ending pagination.")
+                break
 
-    try:
-        response = requests.get(url)
-        response.encoding = 'utf-8'
-        response.raise_for_status()
-    except requests.RequestException as e:
-        logging.warning(f"Page fetch failed at {url}: {e}")
-        break
+            for product in products:
+                self.process_product(product)
 
-    soup = BeautifulSoup(response.text, 'html.parser')
-    products = soup.find_all(['li', 'div'], class_='product')
+            logging.info(f"Page {page} scraped: {len(products)} products")
+            page += 1
 
-    if not products:
-        logging.info(f"No products found on page {page}. Ending pagination.")
-        break
+        self.save_to_csv()
+        self.log_completion_time()
 
-    for product in products:
+
+    def process_product(self, product):
         try:
             pid = product.get('data-id', 'N/A')
-
             title_elem = product.find('h3', class_='wd-entities-title')
             product_title = title_elem.find('a').text.strip() if title_elem and title_elem.find('a') else 'N/A'
             product_link = title_elem.find('a')['href'] if title_elem and title_elem.find('a') else 'N/A'
 
             rating_div = product.find('div', class_='jdgm-prev-badge')
             rating_raw = rating_div.get('data-average-rating', '') if rating_div else ''
-            try:
-                rating_text = float(rating_raw) if rating_raw else 'N/A'
-            except ValueError:
-                rating_text = 'N/A'
-
-            description_elem = product.find('div', class_='product-meta')
-            description_text = description_elem.text.strip() if description_elem else 'N/A'
+            rating_text = float(rating_raw) if rating_raw else 'N/A'
 
             price_elem = product.find('span', class_='price')
-            price_text = price_elem.text.strip() if price_elem else 'N/A'
+            raw_price_text = price_elem.text.strip() if price_elem else 'N/A'
+            price_text, cleaned_text = self.extract_current_price(raw_price_text)
 
             image_elem = product.find('img')
             image_src = image_elem['src'] if image_elem else 'N/A'
@@ -97,7 +72,6 @@ while True:
                 try:
                     product_response = requests.get(product_link)
                     product_response.encoding = 'utf-8'
-
                     if product_response.status_code == 200:
                         product_soup = BeautifulSoup(product_response.text, 'html.parser')
 
@@ -107,21 +81,19 @@ while True:
                         add_info_container = product_soup.find('div', id='tab-additional_information')
                         add_info_text = add_info_container.get_text(separator="\n", strip=True) if add_info_container else ''
 
-                        full_description = (desc_text + "\n\n" + add_info_text).strip() or 'N/A'
-                        weight_value = extract_weight_from_soup(product_soup, full_description)
+                        full_description = (desc_text + cleaned_text).strip() or 'N/A'
+                        weight_value = self.extract_weight_from_soup(product_soup, full_description + "\n" + add_info_text)
 
                         categories_section = product_soup.select_one('.product_meta .posted_in')
                         if categories_section:
                             categories_links = categories_section.find_all('a')
                             categories_list = [link.text.strip() for link in categories_links]
-                    else:
-                        logging.warning(f"Failed to fetch product page: {product_link} - Status: {product_response.status_code}")
                 except Exception as e:
                     logging.error(f"Error fetching product details from {product_link}: {e}")
 
-                time.sleep(0.5)
+                time.sleep(0.4)
 
-            all_products.append([
+            self.all_products.append([
                 pid,
                 product_title,
                 price_text,
@@ -134,28 +106,78 @@ while True:
                 stock_status
             ])
         except Exception as e:
-            logging.error(f"❌ Error parsing product block: {e}")
+            logging.error(f"Error parsing product block: {e}")
 
-    logging.info(f"Page {page} scraped: {len(products)} products")
-    page += 1
 
-# Save to CSV
-os.makedirs('data', exist_ok=True)
-filename = re.sub(r'[^a-zA-Z0-9]', '_', shop_url.strip('/')) + '.csv'
-file_path = os.path.join('data', filename)
+    def extract_weight_from_soup(self, soup, fallback_text):
+        try:
 
-try:
-    with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            'product_id', 'title', 'price', 'link', 'categories',
-            'description', 'rating', 'weight', 'image', 'stock_status'
-        ])
-        writer.writerows(all_products)
-    logging.info(f"Scraping complete. Saved {len(all_products)} products to {file_path}")
-except Exception as e:
-    logging.error(f"Failed to write CSV: {e}")
+            def filter_kg_g(text):
+                return ', '.join(re.findall(r'\b\d+(?:\.\d+)?\s?(?:kg|g)\b', text, flags=re.IGNORECASE))
 
-end_time = time.time()
-minutes, seconds = divmod(end_time - start_time, 60)
-logging.info(f"Total time taken: {int(minutes)} minutes and {int(seconds)} seconds")
+
+            for select_id in ['sold-and-packed-in', 'packed-in', 'size', 'sold-as', 'sold-in']:
+                select = soup.find('select', id=select_id)
+                if select:
+                    options = select.find_all('option')
+                    weights = [
+                        filter_kg_g(opt.text.strip())
+                        for opt in options
+                        if opt.get('value') and 'choose an option' not in opt.text.lower()
+                    ]
+                    weights = [w for w in weights if w]
+                    if weights:
+                        return ', '.join(weights)
+                    
+            weight_headers = ['Sold in', 'Sold', 'Packed in', 'Weight', 'Net Weight', 'Packaging']
+            for header in weight_headers:
+                match = re.search(rf"{header}(?::|\s)\s*\n?\s*(.*?)(?:\n|$)", fallback_text, re.IGNORECASE)
+                if match:
+                    extracted_text = match.group(1)
+                    filtered = filter_kg_g(extracted_text)
+                    if filtered:
+                        return filtered
+
+            weight_or_size_match = re.search(r"(Weight|Size)\s*\n\s*(.*?)(?:\n|$)", fallback_text, re.IGNORECASE)
+            if weight_or_size_match:
+                weight_line = weight_or_size_match.group(2)
+                filtered = filter_kg_g(weight_line)
+                if filtered:
+                    return filtered
+
+        except Exception as e:
+            logging.error(f"Weight extraction error: {e}")
+        
+        return 'N/A'
+
+
+    def extract_current_price(self, price_text):
+        try:
+            cleaned_text = price_text.replace('\xa0', ' ').replace('Â', '').replace('â€“', '-').strip()
+            if "current price" in cleaned_text.lower():
+                match = re.search(r'Current price is:\s*([\d.,]+)', cleaned_text, re.IGNORECASE)
+                if match:
+                    return match.group(1).strip() + ' $',"\n\n" + cleaned_text
+            return cleaned_text,""
+        except Exception as e:
+            logging.error(f"Price extraction error: {e}")
+            return price_text.strip(),""
+
+    def save_to_csv(self):
+        file_path = config['data_file']['products_data_path']
+        try:
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'product_id', 'title', 'price', 'link', 'categories',
+                    'description', 'rating', 'weight', 'image', 'stock_status'
+                ])
+                writer.writerows(self.all_products)
+            logging.info(f"Scraping complete. Saved {len(self.all_products)} products to {file_path}")
+        except Exception as e:
+            logging.error(f"Failed to write CSV: {e}")
+
+    def log_completion_time(self):
+        end_time = time.time()
+        minutes, seconds = divmod(end_time - self.start_time, 60)
+        logging.info(f"Total time taken: {int(minutes)} minutes and {int(seconds)} seconds")

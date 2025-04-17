@@ -125,7 +125,7 @@ class WeaviateHandler:
                 for _, row in batch.iterrows():
                     categories = None if pd.isna(row["categories"]) else [cat.strip() for cat in row["categories"].split(",")]
                     product = {
-                        "product_id": None if pd.isna(row["id"]) else str(row["id"]),
+                        "product_id": None if pd.isna(row["product_id"]) else str(row["product_id"]),
                         "title": None if pd.isna(row["title"]) else str(row["title"]),
                         "description": None if pd.isna(row["description"]) else str(row["description"]),
                         "link": None if pd.isna(row["link"]) else str(row["link"]),
@@ -206,7 +206,7 @@ class WeaviateHandler:
         """Reads product data, generates embeddings, and stores in Weaviate."""
         try:
             try:
-                df = pd.read_csv(config['input_file']['cleaned_products_data_path'])
+                df = pd.read_csv(config['data_file']['cleaned_products_data_path'])
                 logging.info("File successfully read")
             except UnicodeDecodeError as e:
                 logging.error(f"Error: The file is not UTF-8 encoded. Encoding issue: {e}")
@@ -224,7 +224,7 @@ class WeaviateHandler:
             self.close()
 
 
-    def hybrid_search(self, query, alpha=0.5, limit=5, filters=None):
+    def hybrid_search(self, query, alpha=0.5, limit=7, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
         self.collection = self.client.collections.get(self.collection_name)
         
@@ -246,7 +246,6 @@ class WeaviateHandler:
             if not documents:
                 logging.info("Hybrid search returned no results. Skipping reranking.")
                 return "No Product Available or Requested", {}
-            
             
             reranked_docs = self.reranked.rerank_results(query, documents)
             self.reranked.process_objects(reranked_docs, limit=limit)
