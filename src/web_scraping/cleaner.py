@@ -6,7 +6,6 @@ from openai import AzureOpenAI
 
 from src.utils import logging, config
 
-
 class ProductCleaner:
     def __init__(self):
         self.input_file_path = config['data_file']['products_data_path']
@@ -75,7 +74,6 @@ class ProductCleaner:
 
                 if weight_match:
                     return weight_match.group(0)
-
                 return None
 
             except Exception as e:
@@ -86,7 +84,6 @@ class ProductCleaner:
                     time.sleep(wait_time)
                 else:
                     break
-
         return None
 
 

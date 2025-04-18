@@ -2,7 +2,6 @@ import pandas as pd
 import weaviate
 from weaviate.classes.config import Configure
 import weaviate.classes as wvc
-import json
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -71,7 +70,6 @@ class WeaviateHandler:
                     wvc.config.Property(
                         name="price",
                         data_type=wvc.config.DataType.NUMBER,
-                        vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
                         name="categories",
@@ -224,13 +222,14 @@ class WeaviateHandler:
             self.close()
 
 
-    def hybrid_search(self, query, alpha=0.5, limit=7, filters=None):
+    def hybrid_search(self, query, alpha=0.5, limit=8, filters=None):
         """Perform hybrid search using keyword & vector similarity."""
         self.collection = self.client.collections.get(self.collection_name)
         
         if not self.collection:
             logging.error(f"Collection '{self.collection_name}' not found.")
             raise
+        
         logging.info(f"Collection '{self.collection_name}' loaded successfully.")
 
         try:

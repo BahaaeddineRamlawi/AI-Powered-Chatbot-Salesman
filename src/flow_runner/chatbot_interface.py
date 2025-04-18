@@ -1,4 +1,5 @@
 from src.llm import ChatbotHandler
+from src.data_retriever import WeaviateHandler
 from src.utils import logging
 import atexit
 
@@ -8,7 +9,8 @@ def on_shutdown(chatbot_handler):
 
 if __name__ == "__main__":
     try:
-        chatbot_handler = ChatbotHandler()
+        weaviate_handler = WeaviateHandler()
+        chatbot_handler = ChatbotHandler(weaviate_handler)
         chatbot_handler.launch_chatbot()
         atexit.register(on_shutdown, chatbot_handler)       
     except Exception as e:

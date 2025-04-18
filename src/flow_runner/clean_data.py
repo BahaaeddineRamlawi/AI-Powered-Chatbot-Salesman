@@ -1,11 +1,11 @@
-from src.data_retriever import ProductDataCleaner
+from src.web_scraping import ProductCleaner
 from src.utils import logging
 
 if __name__ == "__main__":
     try:
-        cleaner = ProductDataCleaner()
-        cleaned_file = cleaner.process_file()
-        logging.info("File processed successfully.")
-    
+        cleaner = ProductCleaner()
+        logging.info("Expanding, cleaning and saving product data...")
+        cleaner.expand_and_save()
+        logging.info("Data expansion completed.")
     except Exception as e:
-        logging.error(f"Error during file processing: {e}")
+        logging.error(f"Error during expanding and cleaning data: {e}")

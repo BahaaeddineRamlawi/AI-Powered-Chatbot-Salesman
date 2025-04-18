@@ -5,7 +5,7 @@ from src.data_retriever import WeaviateHandler
 from src.web_scraping import ProductScraper, ProductCleaner
 from src.utils import logging
 
-should_update_data = True
+should_update_data = False
 
 
 def on_shutdown(chatbot_handler):
@@ -18,20 +18,19 @@ def on_shutdown(chatbot_handler):
         logging.error(f"Error during shutdown: {e}")
 
 
-def update_and_create_vector_db():
+def update_and_create_vector_db(weaviate_handler):
     try:
         logging.info("Starting data update and vector DB creation...")
         
         scraper = ProductScraper()
-        expander = ProductCleaner()
-        weaviate_handler = WeaviateHandler()
+        cleaner = ProductCleaner()
 
         logging.info("Running web scraper...")
         scraper.run()
         logging.info("Web scraping completed.")
 
         logging.info("Expanding and saving product data...")
-        expander.expand_and_save()
+        cleaner.expand_and_save()
         logging.info("Data expansion completed.")
 
         logging.info("Processing and storing products into Weaviate...")
@@ -42,10 +41,10 @@ def update_and_create_vector_db():
         logging.error(f"Error while updating and creating vector DB: {e}")
 
 
-def run_chatbot():
+def run_chatbot(weaviate_handler):
     logging.info("Launching chatbot interface...")
     try:
-        chatbot_handler = ChatbotHandler()
+        chatbot_handler = ChatbotHandler(weaviate_handler)
         chatbot_handler.launch_chatbot()
         atexit.register(on_shutdown, chatbot_handler)
     except Exception as e:
@@ -55,13 +54,14 @@ def run_chatbot():
 def main():
     global should_update_data
 
+    weaviate_handler = WeaviateHandler()
     try:
         if should_update_data:
-            update_and_create_vector_db()
+            update_and_create_vector_db(weaviate_handler)
         else:
             logging.info("Skipping data update as per configuration.")
 
-        run_chatbot()
+        run_chatbot(weaviate_handler)
     except Exception as e:
         logging.error(f"Unhandled exception in main: {e}")
 
