@@ -16,8 +16,7 @@ class ChatbotHandler:
             self.history_limit = 8
             self.max_history_check = 2
             self.product_query_counter = 0
-            self.offer_suggestion_enabled = False
-            self.similarity_suggestion_enabled = False
+            self.question_to_ask = ""
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -25,28 +24,24 @@ class ChatbotHandler:
             raise
 
 
-    def stream_response(self, query, history):
+    def stream_response(self, query, history, user_id=2001):
         """
         Handle streaming responses to the chat interface.
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
-            knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=2001)
+            knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=user_id)
             logging.info(f"Received query: {query}")
 
-            product_intents = {"ask_for_product", "ask_for_recommendation", "ask_without_product"}
-
-            if intent in product_intents and self.product_query_counter <= 5:
+            if self.product_query_counter <= 5 and intent in {"ask_for_product", "ask_without_product"}:
                 self.product_query_counter += 1
                 if self.product_query_counter == 3:
-                    self.offer_suggestion_enabled = True
+                    self.question_to_ask = """\nAsk the user if they're interested in current deals - for example, with a question like: '**Would you like to check out our current offers?**' or a similar friendly variation."""
                     
                 elif self.product_query_counter == 5:
-                    self.similarity_suggestion_enabled = True
-
-                else:
-                    self.offer_suggestion_enabled = False
-                    self.similarity_suggestion_enabled = False
+                    self.question_to_ask = """\nAsk the user if they'd like a recommendation based on their past ratings - for example, with a question like: '**Would you like to see personalized recommendations based on what you've liked before?**'"""
+                    
+                logging.info(f"Question To Ask: {self.question_to_ask != ''}")
             
             formatted_history = ""
 
@@ -61,12 +56,12 @@ class ChatbotHandler:
             if query is not None:
                 partial_message = ""
                 rag_prompt = self.llmhandler.process_with_llm(
-                    query, knowledge, formatted_history, intent, features, self.offer_suggestion_enabled, self.similarity_suggestion_enabled
+                    query, knowledge, formatted_history, intent, features, self.question_to_ask
                 )
-
                 for response in self.llmhandler.stream(rag_prompt):
                     partial_message += response.content
                     yield partial_message
+            self.question_to_ask = ""
 
         except Exception as e:
             logging.error(f"Error during message processing: {e}")
@@ -106,6 +101,7 @@ class ChatbotHandler:
             combined_query = query
             filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query, history)
             final_combined_query = query
+            features_string = ", ".join(features)
 
             if (intent == "ask_without_product" and not features and not categories) or (intent == "follow_up"):
                 logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
@@ -122,23 +118,22 @@ class ChatbotHandler:
 
             elif intent == "ask_for_unrelated_product":
                 logging.info("Intent is 'ask_for_unrelated_product'")
-                return "We don't have these products", intent, []
+                return "We don't have these products", intent, "No Features"
 
             elif intent == "ask_for_offers":
                 logging.info("Intent is 'ask_for_offers'")
                 knowledge = self.offer_db.get_offers()
-                return knowledge, intent, features
+                return knowledge, intent, features_string
 
             elif intent in ["gibberish", "greeting", "feedback"]:
                 logging.info(f"Intent is '{intent}'")
-                return "", intent, []
+                return "", intent, "No Features"
 
             elif intent == "ask_for_recommendation":
                 logging.info("Intent is 'ask_for_recommendation'")
                 knowledge = self._get_recommendation_data(intent, user_id=user_id)
-                return knowledge, intent, features
+                return knowledge, intent, features_string
 
-            features_string = ", ".join(features)
             knowledge, base_product = self.search_engine.hybrid_search(
                 query=final_combined_query + ". " + features_string, filters=filters
             )
@@ -150,23 +145,31 @@ class ChatbotHandler:
                 cross_sell = "Cross Selling Products:\n" + self._get_cross_selling_data(base_product)
                 up_sell =  "Up Selling Products:\n" + self._get_up_selling_data(base_product)
                 knowledge += cross_sell + up_sell
-            return knowledge, intent, features
+            return knowledge, intent, features_string
         except Exception as e:
             logging.error(f"Error retrieving knowledge: {e}")
-            return "", "error", []
+            return "", "error", "No Features"
 
 
     def launch_chatbot(self):
         """Launch the Gradio Chatbot Interface"""
         try:
+            user_id_input = gr.Textbox(
+                label="User ID (Optional)", 
+                placeholder="Default is 2001", 
+                value="2001",
+                lines=1
+            )
+
             chatbot = gr.ChatInterface(
-                self.stream_response, 
+                fn=self.stream_response, 
                 textbox=gr.Textbox(
                     placeholder="Send to the LLM...",
                     container=False,
                     autoscroll=True,
                     scale=7
                 ),
+                additional_inputs=[user_id_input],
                 autofocus=True,
                 type="messages"
             )

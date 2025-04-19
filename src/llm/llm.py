@@ -47,7 +47,7 @@ class LLMHandler:
         try:
             with open(prompt_path, "r", encoding="utf-8") as file:
                 logging.info(f"Successfully loaded prompt template from {prompt_path}")
-                return PromptTemplate(template=file.read(), input_variables=["user_query", "search_results", "history"])
+                return PromptTemplate(template=file.read(), input_variables=["user_query", "search_results", "history", "intent", "features", "question_to_ask"])
         except Exception as e:
             logging.error(f"Error reading prompt template: {e}")
             raise
@@ -102,7 +102,7 @@ class LLMHandler:
         )
         
 
-    def process_with_llm(self, user_query, search_results, history, intent, features, offer_suggestion_enabled, similarity_suggestion_enabled):
+    def process_with_llm(self, user_query, search_results, history, intent, features, question_to_ask):
         try:
             logging.info(f"Processing query: {user_query}")
 
@@ -113,8 +113,7 @@ class LLMHandler:
                 history=history,
                 intent=intent,
                 features=features,
-                offer_suggestion_enabled=offer_suggestion_enabled,
-                similarity_suggestion_enabled=similarity_suggestion_enabled
+                question_to_ask=question_to_ask,
             )
 
             logging.info("Response generated successfully")

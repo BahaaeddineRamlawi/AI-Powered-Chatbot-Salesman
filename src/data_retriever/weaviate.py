@@ -122,6 +122,7 @@ class WeaviateHandler:
                 batch = df.iloc[start:start + BATCH_SIZE]
                 for _, row in batch.iterrows():
                     categories = None if pd.isna(row["categories"]) else [cat.strip() for cat in row["categories"].split(",")]
+                    print(categories)
                     product = {
                         "product_id": None if pd.isna(row["product_id"]) else str(row["product_id"]),
                         "title": None if pd.isna(row["title"]) else str(row["title"]),

@@ -83,7 +83,7 @@ class RecommendationHandler:
         except Exception as e:
             logging.error(f"Error computing item similarity: {e}")
 
-    def get_user_based_recommendations(self, user_id, top_k=10):
+    def get_user_based_recommendations(self, user_id, top_k=8):
         try:
             logging.info(f"Generating user-based recommendations for user ID {user_id}...")
             rated_products = self.ratings_data[self.ratings_data["user_id"] == user_id]["product_id"].values
@@ -111,7 +111,7 @@ class RecommendationHandler:
             logging.error(f"Error generating user-based recommendations: {e}")
             return []
 
-    def get_item_based_recommendations(self, product_id, top_k=5):
+    def get_item_based_recommendations(self, product_id, top_k=8):
         try:
             logging.info(f"Generating item-based recommendations for product ID {product_id}...")
             if product_id not in self.item_similarity_df.index:
