@@ -38,6 +38,9 @@ class QueryInfoExtractor:
 
             logging.info(f"LLMProvider {self.llm_provider} initialized successfully")
 
+            with open(config['data_file']['categories'], "r", encoding="utf-8") as f:
+                self.categories_string = f.read().strip()
+
         except Exception as e:
             logging.error(f"Error initializing LLMProvider: {e}")
             raise
@@ -47,7 +50,7 @@ class QueryInfoExtractor:
             logging.info("Template loaded successfully")
         
         
-        self.prompt = PromptTemplate(input_variables=["query"], template=self.prompt_template)
+        self.prompt = PromptTemplate(input_variables=["query", "history", "categories_string"], template=self.prompt_template)
         self.llm_chain = LLMChain(prompt=self.prompt, llm=self.llm)
 
 
@@ -170,7 +173,7 @@ class QueryInfoExtractor:
         filters = Filter.by_property("stock_status").equal("In stock")
         intent = "unknown"
         try:       
-            filters_str = self.llm_chain.run(query=query, history=history)
+            filters_str = self.llm_chain.run(query=query, history=history, categories_string=self.categories_string)
 
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
 

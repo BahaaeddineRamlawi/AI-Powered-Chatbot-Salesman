@@ -11,7 +11,8 @@ class ProductScraper:
         self.shop_url = config["website"]["name"]
         self.all_products = []
         self.start_time = time.time()
-
+        self.unique_categories = set()
+        self.categories_string = ""
 
     def run(self):
         page = 1
@@ -40,8 +41,8 @@ class ProductScraper:
             page += 1
 
         self.save_to_csv()
+        self.save_categories_to_txt()
         self.log_completion_time()
-
 
     def process_product(self, product):
         try:
@@ -88,6 +89,7 @@ class ProductScraper:
                         if categories_section:
                             categories_links = categories_section.find_all('a')
                             categories_list = [link.text.strip() for link in categories_links]
+                            self.unique_categories.update(categories_list)
                 except Exception as e:
                     logging.error(f"Error fetching product details from {product_link}: {e}")
 
@@ -108,13 +110,10 @@ class ProductScraper:
         except Exception as e:
             logging.error(f"Error parsing product block: {e}")
 
-
     def extract_weight_from_soup(self, soup, fallback_text):
         try:
-
             def filter_kg_g(text):
                 return ', '.join(re.findall(r'\b\d+(?:\.\d+)?\s?(?:kg|g)\b', text, flags=re.IGNORECASE))
-
 
             for select_id in ['sold-and-packed-in', 'packed-in', 'size', 'sold-as', 'sold-in']:
                 select = soup.find('select', id=select_id)
@@ -128,7 +127,7 @@ class ProductScraper:
                     weights = [w for w in weights if w]
                     if weights:
                         return ', '.join(weights)
-                    
+
             weight_headers = ['Sold in', 'Sold', 'Packed in', 'Weight', 'Net Weight', 'Packaging']
             for header in weight_headers:
                 match = re.search(rf"{header}(?::|\s)\s*\n?\s*(.*?)(?:\n|$)", fallback_text, re.IGNORECASE)
@@ -147,9 +146,8 @@ class ProductScraper:
 
         except Exception as e:
             logging.error(f"Weight extraction error: {e}")
-        
-        return 'N/A'
 
+        return 'N/A'
 
     def extract_current_price(self, price_text):
         try:
@@ -157,11 +155,11 @@ class ProductScraper:
             if "current price" in cleaned_text.lower():
                 match = re.search(r'Current price is:\s*([\d.,]+)', cleaned_text, re.IGNORECASE)
                 if match:
-                    return match.group(1).strip() + ' $',"\n\n" + cleaned_text
-            return cleaned_text,""
+                    return match.group(1).strip() + ' $', "\n\n" + cleaned_text
+            return cleaned_text, ""
         except Exception as e:
             logging.error(f"Price extraction error: {e}")
-            return price_text.strip(),""
+            return price_text.strip(), ""
 
     def save_to_csv(self):
         file_path = config['data_file']['products_data_path']
@@ -176,6 +174,22 @@ class ProductScraper:
             logging.info(f"Scraping complete. Saved {len(self.all_products)} products to {file_path}")
         except Exception as e:
             logging.error(f"Failed to write CSV: {e}")
+
+    def save_categories_to_txt(self):
+        try:
+            sorted_categories = sorted(self.unique_categories)
+            self.categories_string = ", ".join(sorted_categories)
+
+            with open(config['data_file']['categories'], "w", encoding="utf-8") as f:
+                for i, cat in enumerate(sorted_categories):
+                    if i == len(sorted_categories) - 1:
+                        f.write(cat + ".")
+                    else:
+                        f.write(cat + ", ")
+
+            logging.info(f"Saved {len(sorted_categories)} unique categories")
+        except Exception as e:
+            logging.error(f"Error saving categories: {e}")
 
     def log_completion_time(self):
         end_time = time.time()

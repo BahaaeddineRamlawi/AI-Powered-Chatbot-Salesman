@@ -9,7 +9,7 @@ Query:
 {query}
 
 **Categories**:
-- All Fruits, Chocolate, Coffee, Coffee Capsules, Confectionery, Dried Fruits, Freshly Pressed Nut Butters, Fruit Paste, Fruits & Nuts Mixes, Gifts, Healthy Mixes & Dried Fruits, Holiday Selection, Jars, Mixed Nuts, Nut Bars, Nut Butters, Nut Spreads & Bars, Nuts & Kernels, Nuts & Seeds, Nuts Dragées, Oriental Sweets, Prepacks, Protein, Sugar-Free Nut Bars, Sugared Nuts, Zaatar.
+- {categories_string}
 
 **Features**:
     Extract only food-related features that are either explicitly stated or can be logically inferred from the query.

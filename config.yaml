@@ -6,6 +6,7 @@ data_file:
   offers_data_path: "./assets/CSVs/offers.csv"
   cleaned_products_data_path: "./assets/CSVs/cleaned_products.csv"
   user_rating_datapath: "./assets/CSVs/user_rating.csv"
+  categories: "./assets/categories.txt"
 
 prompt_templates:
   main_prompt_template_path: "./assets/templates/main_prompt_template.txt"

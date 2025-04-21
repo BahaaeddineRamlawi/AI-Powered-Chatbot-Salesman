@@ -5,7 +5,7 @@ from src.data_retriever import WeaviateHandler
 from src.web_scraping import ProductScraper, ProductCleaner
 from src.utils import logging
 
-should_update_data = False
+should_update_data = True
 
 
 def on_shutdown(chatbot_handler):
