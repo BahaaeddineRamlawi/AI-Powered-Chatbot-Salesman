@@ -41,6 +41,7 @@ class ChatbotHandler:
                 elif self.product_query_counter == 5:
                     self.question_to_ask = """\nAsk the user if they'd like a recommendation based on their past ratings - for example, with a question like: '**Would you like to see personalized recommendations based on what you've liked before?**'"""
                     
+                    
                 logging.info(f"Question To Ask: {self.question_to_ask != ''}")
             
             formatted_history = ""
@@ -99,18 +100,18 @@ class ChatbotHandler:
         try:
             knowledge = ""
             combined_query = query
-            filters, intent, features, categories = self.filter_extractor.extract_info_from_query(query, history)
+            filters, intent, features = self.filter_extractor.extract_info_from_query(query, history)
             final_combined_query = query
             features_string = ", ".join(features)
 
-            if (intent == "ask_without_product" and not features and not categories) or (intent == "follow_up"):
+            if (intent == "follow_up"):
                 logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
                 combined_queries = [query]
                 user_queries = [entry["content"] for entry in reversed(history) if entry["role"] == "user"]
                 for past_query in user_queries[:self.max_history_check]:
                     combined_queries.append(past_query)
                     combined_query = ", ".join(reversed(combined_queries))
-                    _, past_intent, features, categories = self.filter_extractor.extract_info_from_query(past_query, history)
+                    _, past_intent, features = self.filter_extractor.extract_info_from_query(past_query, history)
                     logging.info(f"After appending, combined query: {combined_query}")
                     if past_intent == "ask_for_product":
                         break
@@ -138,13 +139,13 @@ class ChatbotHandler:
                 query=final_combined_query + ". " + features_string, filters=filters
             )
 
-            if not base_product:
-                logging.info("No base product found.")
-            else:
-                logging.info("Base product was found.")
-                cross_sell = "Cross Selling Products:\n" + self._get_cross_selling_data(base_product)
-                up_sell =  "Up Selling Products:\n" + self._get_up_selling_data(base_product)
-                knowledge += cross_sell + up_sell
+            # if not base_product:
+            #     logging.info("No base product found.")
+            # else:
+            #     logging.info("Base product was found.")
+            #     cross_sell = "Cross Selling Products:\n" + self._get_cross_selling_data(base_product)
+            #     up_sell =  "Up Selling Products:\n" + self._get_up_selling_data(base_product)
+            #     knowledge += cross_sell + up_sell
             return knowledge, intent, features_string
         except Exception as e:
             logging.error(f"Error retrieving knowledge: {e}")

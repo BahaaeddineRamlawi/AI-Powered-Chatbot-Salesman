@@ -34,12 +34,10 @@ Determine the user's intent using the query in context of the conversation histo
  - "gibberish" - Random or unintelligible text (e.g., "dfjksd")
  - "thanking" - Gratitude or thanks (e.g., "Thanks a lot")
  - "ask_for_unrelated_product" - Asking for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets)
- - "ask_without_product" – If the query does not mention any specific product name or a category (e.g., "What do you sell?", "Tell me more", "Show me something more")
-      This also includes general follow-up replies like "Give me the cheap ones", "Tell me more about the second offer", when there isn't enough context in the current message alone to determine the specific product
  - "ask_for_product" - Requests about a specific product, feature, or category (e.g., "I want almonds", "Do you have chocolate?")
  - "ask_for_offers" - Asks explicitly or implicitly about deals, discounts, or current promotions, even if phrased as a recommendation (e.g., "What offers do you recommend?", "Show me your best deals")
  - "ask_for_recommendation" - Looks for product suggestions or needs help choosing. This includes open-ended questions like "What do you recommend?" as well as requests for alternatives or similar items, such as "Anything like this?" or "Can you show me similar products?"
- - "follow_up" - A follow-up that clearly refers to a previous message or product already discussed, often using words like "this", "that", "it", "more about it", "the second one", etc.
+ - "follow_up" - A follow-up that clearly refers to a previous message or product already discussed, often using words like "this", "that", "it", "more about it", "the second one", etc. (Does not include answeing previous questions)
  - "other" - 	Anything that doesn’t fit the above
  
 ### Step 2: Filter Extraction
@@ -66,9 +64,11 @@ Only include price filters when it is clearly mentioned in the current query onl
     {{  "path": "features", "valueString": "unsalted" }}
   ]
 
- - User: 'You are Great'
+ - User: 'Return the most rated products below 30 $'
  - Assistant: [
-    {{  "path": "intent", "valueString": "feedback" }},
+    {{  "path": "intent", "valueString": "ask_for_product" }},
+    {{  "path": "rating", "operator": "NotEqual", "valueString": "None" }},
+    {{  "path": "price", "operator": "LessThan", "valueNumber": 30.0 }}
   ]
 
  - User: 'Do you have nuggets?'

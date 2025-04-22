@@ -54,6 +54,7 @@ class ProductScraper:
             rating_div = product.find('div', class_='jdgm-prev-badge')
             rating_raw = rating_div.get('data-average-rating', '') if rating_div else ''
             rating_text = float(rating_raw) if rating_raw else 'N/A'
+            rating_count = rating_div.get('data-number-of-reviews', '') if rating_div else 'N/A'
 
             price_elem = product.find('span', class_='price')
             raw_price_text = price_elem.text.strip() if price_elem else 'N/A'
@@ -103,6 +104,7 @@ class ProductScraper:
                 ', '.join(categories_list) if categories_list else 'N/A',
                 full_description,
                 rating_text,
+                rating_count,
                 weight_value,
                 image_src,
                 stock_status
@@ -168,7 +170,7 @@ class ProductScraper:
                 writer = csv.writer(f)
                 writer.writerow([
                     'product_id', 'title', 'price', 'link', 'categories',
-                    'description', 'rating', 'weight', 'image', 'stock_status'
+                    'description', 'rating', 'rating_count', 'weight', 'image', 'stock_status'
                 ])
                 writer.writerows(self.all_products)
             logging.info(f"Scraping complete. Saved {len(self.all_products)} products to {file_path}")

@@ -81,6 +81,10 @@ class WeaviateHandler:
                         data_type=wvc.config.DataType.NUMBER,
                     ),
                     wvc.config.Property(
+                        name="rating_count",
+                        data_type=wvc.config.DataType.NUMBER,
+                    ),
+                    wvc.config.Property(
                         name="weight",
                         data_type=wvc.config.DataType.TEXT,
                     ),
@@ -130,6 +134,7 @@ class WeaviateHandler:
                         "price": None if pd.isna(row["price"]) else row["price"],
                         "categories": categories,
                         "rating": None if pd.isna(row["rating"]) else row["rating"],
+                        "rating_count": None if pd.isna(row["rating_count"]) else row["rating_count"],
                         "weight": None if pd.isna(row["weight"]) else row["weight"],
                         "image": None if pd.isna(row["image"]) else row["image"],
                         "stock_status": None if pd.isna(row["stock_status"]) else row["stock_status"]
@@ -180,6 +185,7 @@ class WeaviateHandler:
             price = obj.properties.get("price", "N/A")
             weight = obj.properties.get("weight", "N/A")
             rating = obj.properties.get("rating", "N/A")
+            rating_count = obj.properties.get("rating_count", "N/A")
 
             result += (
                 f"Product {index}\n"
@@ -190,6 +196,7 @@ class WeaviateHandler:
                 f"Price: ${price}\n"
                 f"Weight: {weight}\n"
                 f"Rating: {rating}\n"
+                f"Rating Count: {rating_count}\n"
                 f"Image URL: {image_url}\n\n"
             )
 

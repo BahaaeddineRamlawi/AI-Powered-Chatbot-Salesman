@@ -133,19 +133,18 @@ class QueryInfoExtractor:
                 weaviate_operator = operator_map[operator]
                 filter_condition = getattr(Filter.by_property(path), weaviate_operator)(float(value_number))
                 filters &= filter_condition
-            # elif path == "categories":
-            #     filter_condition = Filter.by_property("categories").contains_any([value_string])
-            #     filters &= filter_condition
+            elif path == "categories":
+                filter_condition = Filter.by_property("categories").contains_any([value_string])
+                filters &= filter_condition
 
         logging.info("Filter Generated Successfully")
         return filters
 
 
-    def _extract_intent_features_and_category(self, response):
+    def _extract_intent_features(self, response):
         """Extracts the intent from a given response."""
         intent = "unknown"
         features = []
-        categories = []
         try:
             for item in response:
                 path = item.get("path")
@@ -155,13 +154,9 @@ class QueryInfoExtractor:
                     feature = item.get("valueString")
                     if feature:
                         features.append(feature)
-                elif path == "categories":
-                    category = item.get("valueString")
-                    if category:
-                        categories.append(category)
 
             logging.info(f"Extracted intent: {intent}, features: {features}")
-            return intent,features,categories
+            return intent,features
 
         except json.JSONDecodeError:
             logging.error("Invalid JSON format.")
@@ -182,10 +177,10 @@ class QueryInfoExtractor:
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)
-            intent, features, categories = self._extract_intent_features_and_category(valid_json)
+            intent, features = self._extract_intent_features(valid_json)
 
             logging.info("Filters and Intent extracted")
-            return filters, intent, features, categories
+            return filters, intent, features
 
         except Exception as e:
             logging.error(f"Error extracting filters: {e}")
