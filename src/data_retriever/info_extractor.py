@@ -136,6 +136,7 @@ class QueryInfoExtractor:
             elif path == "categories":
                 filter_condition = Filter.by_property("categories").contains_any([value_string])
                 filters &= filter_condition
+            
 
         logging.info("Filter Generated Successfully")
         return filters
@@ -145,6 +146,8 @@ class QueryInfoExtractor:
         """Extracts the intent from a given response."""
         intent = "unknown"
         features = []
+        up_sell = None
+        cross_sell = None
         try:
             for item in response:
                 path = item.get("path")
@@ -154,9 +157,13 @@ class QueryInfoExtractor:
                     feature = item.get("valueString")
                     if feature:
                         features.append(feature)
+                elif path == 'up_sell':
+                    up_sell = item.get("valueBoolean", None)
+                elif path == 'cross_sell':
+                    cross_sell = item.get("valueBoolean", None)
 
             logging.info(f"Extracted intent: {intent}, features: {features}")
-            return intent,features
+            return intent, features, up_sell, cross_sell
 
         except json.JSONDecodeError:
             logging.error("Invalid JSON format.")
@@ -177,15 +184,15 @@ class QueryInfoExtractor:
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)
-            intent, features = self._extract_intent_features(valid_json)
+            intent, features, up_sell, cross_sell = self._extract_intent_features(valid_json)
 
             logging.info("Filters and Intent extracted")
-            return filters, intent, features
+            return filters, intent, features, up_sell, cross_sell
 
         except Exception as e:
             logging.error(f"Error extracting filters: {e}")
-            return filters, intent, []
+            return filters, intent, [], None, None
 
         except json.JSONDecodeError as e:
             logging.error(f"Error decoding JSON response: {e}")
-            return filters, intent, []
+            return filters, intent, [], None, None

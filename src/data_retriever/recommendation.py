@@ -116,7 +116,7 @@ class RecommendationHandler:
             logging.info(f"Generating item-based recommendations for product ID {product_id}...")
             if product_id not in self.item_similarity_df.index:
                 logging.error(f"Product ID {product_id} not found in item-item similarity index.")
-                return []
+                return ""
 
             similarity_scores = self.item_similarity_df[product_id].drop(index=product_id)
             top_similar = similarity_scores.sort_values(ascending=False).head(top_k)
@@ -125,10 +125,10 @@ class RecommendationHandler:
             return self._format_recommendations(product_score_pairs)
         except KeyError as key_error:
             logging.error(f"Key error while generating item-based recommendations: {key_error}")
-            return []
+            return ""
         except Exception as e:
             logging.error(f"Error generating item-based recommendations: {e}")
-            return []
+            return ""
 
     def _format_recommendations(self, recommendations):
         result = ""
@@ -138,8 +138,6 @@ class RecommendationHandler:
                 if product_row.empty:
                     logging.warning(f"Product ID {product_id} not found in dataset, skipping.")
                     continue
-
-                logging.debug(f"Recommended product: {product_id}, Score: {score}")
 
                 product_info = product_row.iloc[0]
                 description = product_info["description"].rstrip()
@@ -156,7 +154,7 @@ class RecommendationHandler:
                 )
 
             if not result:
-                return "No recommended products found.\n"
+                return "No Products found.\n"
             return result
         except KeyError as key_error:
             logging.error(f"Key error while formatting recommendations: {key_error}")

@@ -7,9 +7,9 @@ from datetime import datetime
 from src.utils import logging, config
 
 class UserHistoryDatabase:
-    def __init__(self, db_name=config['database']['history_name']):
+    def __init__(self):
         """Initialize the database connection."""
-        self.db_name = db_name
+        self.db_name = config['database']['history_name']
         self.conn = None
         self.db_dir = os.path.dirname(self.db_name)
         if self.db_dir and not os.path.exists(self.db_dir):

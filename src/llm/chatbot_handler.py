@@ -3,6 +3,9 @@ import gradio as gr
 from .llm import LLMHandler
 from src.data_retriever import RecommendationHandler, QueryInfoExtractor, OffersDatabase, MarketingStrategies
 from src.utils import logging
+import random
+
+MAX_QUERY_LENGTH = 300
 
 class ChatbotHandler:
     def __init__(self, weaviate_handler):
@@ -15,8 +18,12 @@ class ChatbotHandler:
             self.strategies = MarketingStrategies(self.search_engine, self.recommendation_engine)
             self.history_limit = 8
             self.max_history_check = 2
-            self.product_query_counter = 0
+            self.product_query_counter = 4
             self.question_to_ask = ""
+            self.up_sell = False
+            self.cross_sell = False
+            self.cross_sell_percentage = 1
+            self.up_sell_percentage = 1
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -30,18 +37,31 @@ class ChatbotHandler:
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
+            if query is None or len(query.strip()) == 0:
+                yield "Please enter a valid query."
+                return
+            
+            if len(query) > MAX_QUERY_LENGTH:
+                yield f"Your message is too long. Please keep it under {MAX_QUERY_LENGTH} characters."
+                return
+            
             knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=user_id)
             logging.info(f"Received query: {query}")
 
             if self.product_query_counter <= 5 and intent in {"ask_for_product", "ask_without_product"}:
                 self.product_query_counter += 1
                 if self.product_query_counter == 3:
-                    self.question_to_ask = """\nAsk the user if they're interested in current deals - for example, with a question like: '**Would you like to check out our current offers?**' or a similar friendly variation."""
+                    self.question_to_ask = """\nAsk the user if they're interested in current deals - for example, with a question like: '**Would you like to check out our current offers?**'"""
                     
-                elif self.product_query_counter == 5:
+                elif self.product_query_counter == 4:
                     self.question_to_ask = """\nAsk the user if they'd like a recommendation based on their past ratings - for example, with a question like: '**Would you like to see personalized recommendations based on what you've liked before?**'"""
-                    
-                    
+                
+                elif self.product_query_counter == 5:
+                    self.question_to_ask = """\nAsk the user this question at the end — '**Would you prefer a more premium option?**' or a similar question."""
+
+                elif self.product_query_counter == 6:
+                    self.question_to_ask = """\nAsk the user this question at the end — '**Are you thinking of pairing this with anything?**'"""
+                       
                 logging.info(f"Question To Ask: {self.question_to_ask != ''}")
             
             formatted_history = ""
@@ -100,7 +120,17 @@ class ChatbotHandler:
         try:
             knowledge = ""
             combined_query = query
-            filters, intent, features = self.filter_extractor.extract_info_from_query(query, history)
+            filters, intent, features, up_sell, cross_sell = self.filter_extractor.extract_info_from_query(query, history)
+            if up_sell is not None:
+                logging.info(f"Up_Selling: {up_sell}")
+                self.up_sell = up_sell
+                self.up_sell_percentage = 1
+
+            if cross_sell is not None:
+                logging.info(f"Cross_Selling: {cross_sell}")
+                self.cross_sell = cross_sell
+                self.cross_sell_percentage = 1
+
             final_combined_query = query
             features_string = ", ".join(features)
 
@@ -111,7 +141,7 @@ class ChatbotHandler:
                 for past_query in user_queries[:self.max_history_check]:
                     combined_queries.append(past_query)
                     combined_query = ", ".join(reversed(combined_queries))
-                    _, past_intent, features = self.filter_extractor.extract_info_from_query(past_query, history)
+                    _, past_intent, features, _, _ = self.filter_extractor.extract_info_from_query(past_query, history)
                     logging.info(f"After appending, combined query: {combined_query}")
                     if past_intent == "ask_for_product":
                         break
@@ -126,7 +156,7 @@ class ChatbotHandler:
                 knowledge = self.offer_db.get_offers()
                 return knowledge, intent, features_string
 
-            elif intent in ["gibberish", "greeting", "feedback"]:
+            elif intent in ["gibberish", "greeting", "feedback", "other"]:
                 logging.info(f"Intent is '{intent}'")
                 return "", intent, "No Features"
 
@@ -139,13 +169,24 @@ class ChatbotHandler:
                 query=final_combined_query + ". " + features_string, filters=filters
             )
 
-            # if not base_product:
-            #     logging.info("No base product found.")
-            # else:
-            #     logging.info("Base product was found.")
-            #     cross_sell = "Cross Selling Products:\n" + self._get_cross_selling_data(base_product)
-            #     up_sell =  "Up Selling Products:\n" + self._get_up_selling_data(base_product)
-            #     knowledge += cross_sell + up_sell
+            if not base_product:
+                logging.info("No base product found.")
+            else:
+                logging.info("Base product was found.")
+                if self.up_sell and random.random() <= self.up_sell_percentage:
+                    logging.info("Getting Up Selling Products")
+                    up_sell_knowledge = "**Up Selling Products**:\n" + self._get_up_selling_data(base_product)
+                    if "No Product Available or Requested" not in up_sell_knowledge:
+                        knowledge = up_sell_knowledge
+                    self.up_sell_percentage = 0.35
+
+                if self.cross_sell and random.random() <= self.cross_sell_percentage:
+                    logging.info("Getting Cross Selling Products")
+                    cross_sell_knowledge = "**Cross Selling Products**: (People often pair the previous product with these Products)\n"
+                    cross_sell_knowledge += self._get_cross_selling_data(base_product)
+                    knowledge = cross_sell_knowledge
+                    self.cross_sell_percentage = 0.35
+            print(knowledge)
             return knowledge, intent, features_string
         except Exception as e:
             logging.error(f"Error retrieving knowledge: {e}")

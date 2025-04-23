@@ -36,18 +36,26 @@ Determine the user's intent using the query in context of the conversation histo
  - "ask_for_unrelated_product" - Asking for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets)
  - "ask_for_product" - Requests about a specific product, feature, or category (e.g., "I want almonds", "Do you have chocolate?")
  - "ask_for_offers" - Asks explicitly or implicitly about deals, discounts, or current promotions, even if phrased as a recommendation (e.g., "What offers do you recommend?", "Show me your best deals")
- - "ask_for_recommendation" - Looks for product suggestions or needs help choosing. This includes open-ended questions like "What do you recommend?" as well as requests for alternatives or similar items, such as "Anything like this?" or "Can you show me similar products?"
+ - "ask_for_recommendation" - Looks for product suggestions or needs help choosing. This includes open-ended questions like "What do you recommend?"
  - "follow_up" - A follow-up that clearly refers to a previous message or product already discussed, often using words like "this", "that", "it", "more about it", "the second one", etc. (Does not include answeing previous questions)
  - "other" - 	Anything that doesn’t fit the above
  
-### Step 2: Filter Extraction
+### Step 2: Flags
+flags.**up_sell** → **true if the user seems to want a higher-end/premium product, or says yes to a premium suggestion in history.**
+flags.**cross_sell** → **true if the user is looking for an add-on or complementary product, or agrees to a pairing suggestion.**
+Both flags should be either true or false. These flags do not directly reflect the user's intent.
+If a user expresses a desire to pair items or show interest in more elaborate or premium options, their intent should be classified under follow_up. 
+
+### Step 3: Filter Extraction
 From the query, extract filters and intent in the following JSON format:
 [
-    {{  "path": "intent", "valueString": "INTENT" }},
-    {{  "path": "rating", "operator": "GreaterThan", "valueNumber": FLOAT }},
-    {{  "path": "price", "operator": "LessThan", "valueNumber": FLOAT }},
-    {{  "path": "features", "valueString": "FOOD_FEATURE" }}
-    {{  "path": "categories", "valueString": "CATEGORY" }}
+    {{ "path": "intent", "valueString": "INTENT" }},
+    {{ "path": "rating", "operator": "GreaterThan", "valueNumber": FLOAT }},
+    {{ "path": "price", "operator": "LessThan", "valueNumber": FLOAT }},
+    {{ "path": "features", "valueString": "FOOD_FEATURE" }}
+    {{ "path": "categories", "valueString": "CATEGORY" }},
+    {{ "path": "up_sell", "valueBoolean": true | false }},
+    {{ "path": "cross_sell", "valueBoolean": true | false }}
 ]
 
 Only include one general category if it is clearly stated from the predefined list.
@@ -60,36 +68,38 @@ Only include price filters when it is clearly mentioned in the current query onl
 ### Example interactions:
  - User: 'I have high blood pressure, What product do you have for me?'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_for_product" }},
-    {{  "path": "features", "valueString": "unsalted" }}
+    {{ "path": "intent", "valueString": "ask_for_product" }},
+    {{ "path": "features", "valueString": "unsalted" }}
   ]
 
  - User: 'Return the most rated products below 30 $'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_for_product" }},
-    {{  "path": "rating", "operator": "NotEqual", "valueString": "None" }},
-    {{  "path": "price", "operator": "LessThan", "valueNumber": 30.0 }}
+    {{ "path": "intent", "valueString": "ask_for_product" }},
+    {{ "path": "rating", "operator": "NotEqual", "valueString": "None" }},
+    {{ "path": "price", "operator": "LessThan", "valueNumber": 30.0 }}
   ]
 
  - User: 'Do you have nuggets?'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_for_unrelated_product" }},
+    {{ "path": "intent", "valueString": "ask_for_unrelated_product" }}
   ]
 
- - User: 'Which is the cheapest?'
+ - User: 'Give me suggestion about expensive gifts'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_without_product" }},
+    {{ "path": "intent", "valueString": "ask_for_product" }},
+    {{ "path": "categories", "valueString": "Gifts" }},
+    {{ "path": "up_sell", "valueBoolean": true }}
   ]
 
  - User: 'Do you have Peanuts offers'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_for_offers" }},
+    {{ "path": "intent", "valueString": "ask_for_offers" }},
     {{ "path": "categories", "valueString": "Nuts & Kernels" }}
   ]
 
  - User: 'Give me chocolate product with a rating higher than 4'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_for_product" }},
+    {{ "path": "intent", "valueString": "ask_for_product" }},
     {{ "path": "rating", "operator": "GreaterThan", "valueNumber": 4.0 }},
     {{ "path": "categories", "valueString": "Chocolate" }}
   ]
@@ -97,5 +107,19 @@ Only include price filters when it is clearly mentioned in the current query onl
  - History: "...Would you like to see personalized recommendations based on what you've liked before?"
  - User: 'yes sure'
  - Assistant: [
-    {{  "path": "intent", "valueString": "ask_for_recommendation" }},
+    {{ "path": "intent", "valueString": "ask_for_recommendation" }}
+  ]
+
+ - History: "... Would you prefer a more premium option?"
+ - User: 'yes sure'
+ - Assistant: [
+    {{ "path": "intent", "valueString": "follow_up" }},
+    {{ "path": "up_sell", "valueBoolean": true }}
+  ]
+
+ - History: "... Are you thinking of pairing this with anything?"
+ - User: 'yes please'
+ - Assistant: [
+    {{ "path": "intent", "valueString": "follow_up" }},
+    {{ "path": "cross_sell", "valueBoolean": true }}
   ]
