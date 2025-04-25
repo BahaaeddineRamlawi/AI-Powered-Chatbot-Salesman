@@ -3,10 +3,10 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from src.llm import ChatbotHandler
-from src.data_retriever import WeaviateHandler, UserRatingsGenerator, UserHistoryDatabase
-from src.web_scraping import ProductScraper, ProductCleaner
-from src.utils import logging, config
+from .llm import ChatbotHandler
+from .data_retriever import WeaviateHandler, UserRatingsGenerator, UserHistoryDatabase
+from .web_scraping import ProductScraper, ProductCleaner
+from .utils import logging, config
 
 
 def on_shutdown(chatbot_handler):

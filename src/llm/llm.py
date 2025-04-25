@@ -61,7 +61,8 @@ class LLMHandler:
         self.llm = ChatOpenAI(
             openai_api_key=config["openai"]["api_key"],
             temperature=config["llm"]["temperature"],
-            model=config["openai"]["model"]
+            model=config["openai"]["model"],
+            max_tokens=config["llm"]["max_tokens"]
         )
 
 
@@ -72,15 +73,17 @@ class LLMHandler:
             temperature=config["llm"]["temperature"],
             openai_api_key=config["azure_openai"]["api_key"],
             azure_endpoint=config["azure_openai"]["azure_endpoint"],
-            max_retries=2
+            max_retries=2,
+            max_tokens=config["llm"]["max_tokens"]
         )
-    
+
 
     def _init_gemini(self):
         self.llm = ChatGoogleGenerativeAI(
             google_api_key=config["gemini"]["api_key"],
             temperature=config["llm"]["temperature"],
-            model=config["gemini"]["model"]
+            model=config["gemini"]["model"],
+            max_tokens=config["llm"]["max_tokens"]
         )
 
 
@@ -90,8 +93,9 @@ class LLMHandler:
             model=config["mistral"]["model"],
             temperature=config["llm"]["temperature"],
             max_retries=2,
+            max_tokens=config["llm"]["max_tokens"]
         )
-    
+
 
     def _init_groq(self):
         self.llm = ChatGroq(
@@ -99,7 +103,9 @@ class LLMHandler:
             groq_api_key=config["groq"]["api_key"], 
             temperature=config["llm"]["temperature"],
             max_retries=2,
+            max_tokens=config["llm"]["max_tokens"]
         )
+
         
 
     def process_with_llm(self, user_query, search_results, history, intent, features, question_to_ask):
