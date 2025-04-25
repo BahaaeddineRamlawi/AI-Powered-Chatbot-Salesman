@@ -2,6 +2,7 @@ import pandas as pd
 import weaviate
 from weaviate.classes.config import Configure
 import weaviate.classes as wvc
+from sentence_transformers import SentenceTransformer
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -17,8 +18,9 @@ class WeaviateHandler:
         try:
             logging.info("Initializing WeaviateSearch...")
             self.collection_name = config["weaviate"]["collection_name"]
+            self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-            self.reranked = RerankedResponse()
+            self.reranked = RerankedResponse(self.embedding_model)
             logging.info("Ranker initialized.")
 
             self.client = weaviate.connect_to_local()
@@ -70,6 +72,7 @@ class WeaviateHandler:
                     wvc.config.Property(
                         name="price",
                         data_type=wvc.config.DataType.NUMBER,
+                        vectorizer=embedding_model,
                     ),
                     wvc.config.Property(
                         name="categories",
@@ -188,7 +191,7 @@ class WeaviateHandler:
             rating_count = obj.properties.get("rating_count", "N/A")
 
             result += (
-                f"Product {index}\n"
+                f"\nProduct {index}\n"
                 f"Title: {title}\n"
                 f"Link: {link}\n"
                 f"Categories: {categories}\n"
@@ -197,7 +200,7 @@ class WeaviateHandler:
                 f"Weight: {weight}\n"
                 f"Rating: {rating}\n"
                 f"Rating Count: {rating_count}\n"
-                f"Image URL: {image_url}\n\n"
+                f"Image URL: {image_url}\n"
             )
 
         if not result:

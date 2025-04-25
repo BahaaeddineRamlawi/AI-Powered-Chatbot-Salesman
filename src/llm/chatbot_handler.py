@@ -18,12 +18,12 @@ class ChatbotHandler:
             self.strategies = MarketingStrategies(self.search_engine, self.recommendation_engine)
             self.history_limit = 8
             self.max_history_check = 2
-            self.product_query_counter = 4
+            self.product_query_counter = 0
             self.question_to_ask = ""
             self.up_sell = False
             self.cross_sell = False
-            self.cross_sell_percentage = 1
-            self.up_sell_percentage = 1
+            self.cross_sell_percentage = None
+            self.up_sell_percentage = None
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -31,7 +31,7 @@ class ChatbotHandler:
             raise
 
 
-    def stream_response(self, query, history, user_id=2001):
+    def stream_response(self, query, history, user_id=1):
         """
         Handle streaming responses to the chat interface.
         If knowledge is not found or if an error occurs, it logs the event.
@@ -48,13 +48,13 @@ class ChatbotHandler:
             knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=user_id)
             logging.info(f"Received query: {query}")
 
-            if self.product_query_counter <= 5 and intent in {"ask_for_product", "ask_without_product"}:
+            if self.product_query_counter <= 6 and intent in {"ask_for_product", "ask_without_product"}:
                 self.product_query_counter += 1
                 if self.product_query_counter == 3:
-                    self.question_to_ask = """\nAsk the user if they're interested in current deals - for example, with a question like: '**Would you like to check out our current offers?**'"""
+                    self.question_to_ask = """\nAsk the user if they're interested in current deals - '**Would you like to check out our current offers?**'"""
                     
                 elif self.product_query_counter == 4:
-                    self.question_to_ask = """\nAsk the user if they'd like a recommendation based on their past ratings - for example, with a question like: '**Would you like to see personalized recommendations based on what you've liked before?**'"""
+                    self.question_to_ask = """\nAsk the user if they'd like a recommendation based on their past ratings - '**Would you like to see personalized recommendations based on what you've liked before?**'"""
                 
                 elif self.product_query_counter == 5:
                     self.question_to_ask = """\nAsk the user this question at the end — '**Would you prefer a more premium option?**' or a similar question."""
@@ -73,7 +73,6 @@ class ChatbotHandler:
                         f"User: {recent_history[i]['content']}\n"
                         f"Assistant: {recent_history[i + 1]['content']}\n"
                     )
-
             if query is not None:
                 partial_message = ""
                 rag_prompt = self.llmhandler.process_with_llm(
@@ -160,7 +159,7 @@ class ChatbotHandler:
                 logging.info(f"Intent is '{intent}'")
                 return "", intent, "No Features"
 
-            elif intent == "ask_for_recommendation":
+            elif intent == "ask_for_recommendation" and self.cross_sell_percentage != 1 and self.up_sell_percentage != 1:
                 logging.info("Intent is 'ask_for_recommendation'")
                 knowledge = self._get_recommendation_data(intent, user_id=user_id)
                 return knowledge, intent, features_string
@@ -178,15 +177,19 @@ class ChatbotHandler:
                     up_sell_knowledge = "**Up Selling Products**:\n" + self._get_up_selling_data(base_product)
                     if "No Product Available or Requested" not in up_sell_knowledge:
                         knowledge = up_sell_knowledge
+                    else:
+                        knowledge += "\nNo Up Selling Producs Available."
                     self.up_sell_percentage = 0.35
 
-                if self.cross_sell and random.random() <= self.cross_sell_percentage:
+                elif self.cross_sell and random.random() <= self.cross_sell_percentage:
                     logging.info("Getting Cross Selling Products")
                     cross_sell_knowledge = "**Cross Selling Products**: (People often pair the previous product with these Products)\n"
                     cross_sell_knowledge += self._get_cross_selling_data(base_product)
-                    knowledge = cross_sell_knowledge
+                    if "No Products found" not in cross_sell_knowledge:
+                        knowledge = cross_sell_knowledge
+                    else:
+                        knowledge += "\nNo Cross Selling Producs Available."
                     self.cross_sell_percentage = 0.35
-            print(knowledge)
             return knowledge, intent, features_string
         except Exception as e:
             logging.error(f"Error retrieving knowledge: {e}")
@@ -198,8 +201,8 @@ class ChatbotHandler:
         try:
             user_id_input = gr.Textbox(
                 label="User ID (Optional)", 
-                placeholder="Default is 2001", 
-                value="2001",
+                placeholder="Default is 1", 
+                value="1",
                 lines=1
             )
 
