@@ -1,9 +1,9 @@
-from flashrank import Ranker, RerankRequest
-from src.utils import logging
-from sentence_transformers import util
 import re
+from flashrank import Ranker, RerankRequest
+from sentence_transformers import util
+from src.utils import logging
 
-INTENT_EXAMPLES = {
+SEMANTIC_RULES = {
     "asc": [
         "show me the cheapest products",
         "I want affordable items",
@@ -11,7 +11,7 @@ INTENT_EXAMPLES = {
         "I want low price options",
         "show lowest prices",
         "cheap products",
-        "affordable gifts"
+        "affordable gifts",
     ],
     "desc": [
         "show me the most expensive products",
@@ -26,65 +26,87 @@ INTENT_EXAMPLES = {
     ]
 }
 
+KEYWORD_RULES = {
+    "asc": ["cheapest", "low price", "affordable", "cheap", "lowest", "least expensive"],
+    "desc": ["most expensive", "luxury", "premium", "highest price", "priciest"]
+}
+
+
 def normalize_text(text):
     """Lowercase and strip punctuation from text."""
     return re.sub(r'[^\w\s]', '', text.lower().strip())
 
+
 class RerankedResponse:
     def __init__(self, embedding_model):
-        """
-        Initialize RerankedResponse with FlashRank Ranker and embedding model.
-        Cache intent embeddings for reuse.
-        """
         self.ranker = Ranker()
         self.objects = None
         self.embedding_model = embedding_model
+
         self.intent_example_embeddings = {
             intent: self.embedding_model.encode(examples, convert_to_tensor=True)
-            for intent, examples in INTENT_EXAMPLES.items()
+            for intent, examples in SEMANTIC_RULES.items()
         }
 
+
     def process_objects(self, objects, limit=None):
-        """
-        Process the documents (apply limit and create RerankedObject).
-        """
         if limit is not None:
             objects = objects[:limit]
+        self.objects = [type('RerankedObject', (), {'properties': doc}) for doc in objects]
 
-        self.objects = [
-            type('RerankedObject', (), {'properties': doc}) for doc in objects
-        ]
 
-    def get_price_sort_intent(self, query_text):
+    def get_price_sort_intent(self, query_text, alpha=0.45):
         """
-        Infer user intent from query using semantic similarity (max similarity).
-        Returns 'asc', 'desc', or None.
+        Detect user intent using hybrid scoring: keyword + semantic.
+        Alpha=0.5 means equal contribution.
         """
         try:
             query_text = normalize_text(query_text)
-            query_embedding = self.embedding_model.encode(query_text, convert_to_tensor=True)
 
-            best_score = -1
-            best_intent = None
+            query_embedding = self.embedding_model.encode(query_text, convert_to_tensor=True)
+            semantic_scores = {}
 
             for intent, example_embeddings in self.intent_example_embeddings.items():
                 similarity = util.cos_sim(query_embedding, example_embeddings)
                 max_score = similarity.max().item()
+                semantic_scores[intent] = max_score
 
-                if max_score > best_score:
-                    best_score = max_score
-                    best_intent = intent
+            logging.info(f"[INTENT] Semantic scores: {semantic_scores}")
+
+            keyword_scores = {intent: 0 for intent in SEMANTIC_RULES}
+            for intent, keywords in KEYWORD_RULES.items():
+                for keyword in keywords:
+                    if keyword in query_text:
+                        keyword_scores[intent] += 1
+
+            max_keyword_score = max(keyword_scores.values()) or 1
+            keyword_scores = {
+                intent: score / max_keyword_score
+                for intent, score in keyword_scores.items()
+            }
+
+            logging.info(f"[INTENT] Keyword scores (normalized): {keyword_scores}")
+
+            hybrid_scores = {
+                intent: alpha * semantic_scores.get(intent, 0) + (1 - alpha) * keyword_scores.get(intent, 0)
+                for intent in SEMANTIC_RULES
+            }
+
+            logging.info(f"[INTENT] Hybrid scores (alpha={alpha}): {hybrid_scores}")
+
+            best_intent = max(hybrid_scores, key=hybrid_scores.get)
+            best_score = hybrid_scores[best_intent]
+
+            logging.info(f"[INTENT] Best intent: {best_intent} (score: {best_score:.2f})")
 
             return best_intent if best_score > 0.45 else None
 
         except Exception as e:
-            logging.error(f"Intent detection failed: {e}")
+            logging.error(f"[INTENT] Hybrid intent detection failed: {e}")
             return None
 
+
     def rerank_results(self, query, documents, return_top_k=8):
-        """
-        Rerank search results using FlashRank, then apply optional price-based sorting.
-        """
         try:
             rerank_input = RerankRequest(
                 query=query,
@@ -112,7 +134,7 @@ class RerankedResponse:
 
                 matching_doc = next(
                     (doc for doc in documents
-                    if doc.get('product_id') == product_id and doc.get('weight', '').strip() == weight),
+                     if doc.get('product_id') == product_id and doc.get('weight', '').strip() == weight),
                     None
                 )
 
@@ -121,11 +143,11 @@ class RerankedResponse:
                     scored_docs.append(matching_doc)
 
             if not scored_docs:
-                logging.warning("No documents matched reranked results.")
+                logging.warning("[RERANK] No documents matched reranked results.")
                 return documents[:return_top_k]
 
             sort_direction = self.get_price_sort_intent(query)
-            logging.info(f"Inferred intent: {sort_direction}")
+            logging.info(f"[RERANK] Inferred price sorting intent: {sort_direction}")
 
             if sort_direction in {"asc", "desc"}:
                 scored_docs = sorted(
@@ -133,15 +155,15 @@ class RerankedResponse:
                     key=lambda d: float(str(d.get('price', 0)).replace("$", "").strip()),
                     reverse=(sort_direction == "desc")
                 )
-                logging.info(f"Applied price sorting to reranked results: {sort_direction.upper()}")
+                logging.info(f"[RERANK] Applied price sorting: {sort_direction.upper()}")
             else:
-                logging.info("No price sorting applied.")
+                logging.info("[RERANK] No price sorting applied.")
 
             final_docs = scored_docs[:return_top_k]
-            logging.info(f"Returning {len(final_docs)} items")
+            logging.info(f"[RERANK] Returning {len(final_docs)} items")
 
             return final_docs
 
         except Exception as e:
-            logging.error(f"Reranking failed: {e}")
+            logging.error(f"[RERANK] Failed to rerank results: {e}")
             return documents[:return_top_k]
