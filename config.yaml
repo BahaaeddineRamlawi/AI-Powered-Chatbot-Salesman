@@ -9,6 +9,10 @@ data_file:
   categories: "./assets/categories.txt"
   last_updated_file: "./assets/last_update.txt"
 
+test_data_file:
+  input_path: "./assets/test_CSVs/rifai_chatbot_hallucination_test_queries.csv"
+  output_path: "./assets/test_CSVs/chatbot_responses.csv"
+
 prompt_templates:
   main_prompt_template_path: "./assets/templates/main_prompt_template.txt"
   filter_and_intent_prompt_template_path: "./assets/templates/filter_and_intent_prompt_template.txt"

@@ -4,6 +4,7 @@ from .llm import LLMHandler
 from src.data_retriever import RecommendationHandler, QueryInfoExtractor, OffersDatabase, MarketingStrategies
 from src.utils import logging
 import random
+import time
 
 MAX_QUERY_LENGTH = 300
 
@@ -24,6 +25,9 @@ class ChatbotHandler:
             self.cross_sell = False
             self.cross_sell_percentage = None
             self.up_sell_percentage = None
+            self.retrieval_time = 0.0
+            self.response_time = 0.0
+            self.response_intent = ""
 
         except Exception as e:
             logging.error(f"Error during initialization: {e}")
@@ -37,15 +41,18 @@ class ChatbotHandler:
         If knowledge is not found or if an error occurs, it logs the event.
         """
         try:
+            start_time = time.perf_counter()  # Start timing
             if query is None or len(query.strip()) == 0:
+                self.response_time = time.perf_counter() - start_time
                 yield "Please enter a valid query."
                 return
             
             if len(query) > MAX_QUERY_LENGTH:
+                self.response_time = time.perf_counter() - start_time
                 yield f"Your message is too long. Please keep it under {MAX_QUERY_LENGTH} characters."
                 return
             
-            knowledge, intent, features = self._get_knowledge(query=query, history=history,user_id=user_id)
+            knowledge, intent, features, self.retrieval_time = self._get_knowledge(query=query, history=history,user_id=user_id)
             logging.info(f"Received query: {query}")
 
             if self.product_query_counter <= 6 and intent in {"ask_for_product", "ask_without_product"}:
@@ -78,7 +85,11 @@ class ChatbotHandler:
                 rag_prompt = self.llmhandler.process_with_llm(
                     query, knowledge, formatted_history, intent, features, self.question_to_ask
                 )
+                response_started = False
                 for response in self.llmhandler.stream(rag_prompt):
+                    if not response_started:
+                        self.response_time = time.perf_counter() - start_time
+                        response_started = True
                     partial_message += response.content
                     yield partial_message
             self.question_to_ask = ""
@@ -117,6 +128,7 @@ class ChatbotHandler:
 
     def _get_knowledge(self, query, history, user_id):
         try:
+            start_time = time.perf_counter()  # Start timing
             knowledge = ""
             combined_query = query
             filters, intent, features, up_sell, cross_sell = self.filter_extractor.extract_info_from_query(query, history)
@@ -133,6 +145,8 @@ class ChatbotHandler:
             final_combined_query = query
             features_string = ", ".join(features)
 
+            # start_time = time.perf_counter()  # Start timing
+
             if (intent == "follow_up"):
                 logging.info("Intent is 'ask_without_product'. Combining with previous queries.")
                 combined_queries = [query]
@@ -140,29 +154,33 @@ class ChatbotHandler:
                 for past_query in user_queries[:self.max_history_check]:
                     combined_queries.append(past_query)
                     combined_query = ", ".join(reversed(combined_queries))
-                    _, past_intent, features, _, _ = self.filter_extractor.extract_info_from_query(past_query, history)
+                    _, past_intent, features, _, _, _ = self.filter_extractor.extract_info_from_query(past_query, history)
                     logging.info(f"After appending, combined query: {combined_query}")
                     if past_intent == "ask_for_product":
                         break
                 final_combined_query = ", ".join(reversed(combined_queries))
 
             elif intent == "ask_for_unrelated_product":
+                elapsed_time = time.perf_counter() - start_time
                 logging.info("Intent is 'ask_for_unrelated_product'")
-                return "We don't have these products", intent, "No Features"
+                return "We don't have these products", intent, "No Features", elapsed_time
 
             elif intent == "ask_for_offers":
                 logging.info("Intent is 'ask_for_offers'")
                 knowledge = self.offer_db.get_offers()
-                return knowledge, intent, features_string
+                elapsed_time = time.perf_counter() - start_time
+                return knowledge, intent, features_string, elapsed_time
 
             elif intent in ["gibberish", "greeting", "feedback", "other"]:
+                elapsed_time = time.perf_counter() - start_time
                 logging.info(f"Intent is '{intent}'")
-                return "", intent, "No Features"
+                return "", intent, "No Features", elapsed_time
 
             elif intent == "ask_for_recommendation" and self.cross_sell_percentage != 1 and self.up_sell_percentage != 1:
                 logging.info("Intent is 'ask_for_recommendation'")
                 knowledge = self._get_recommendation_data(intent, user_id=user_id)
-                return knowledge, intent, features_string
+                elapsed_time = time.perf_counter() - start_time
+                return knowledge, intent, features_string, elapsed_time
 
             knowledge, base_product = self.search_engine.hybrid_search(
                 query=final_combined_query + ". " + features_string, filters=filters
@@ -190,10 +208,11 @@ class ChatbotHandler:
                     else:
                         knowledge += "\nNo Cross Selling Producs Available."
                     self.cross_sell_percentage = 0.35
-            return knowledge, intent, features_string
+            elapsed_time = time.perf_counter() - start_time
+            return knowledge, intent, features_string, elapsed_time
         except Exception as e:
             logging.error(f"Error retrieving knowledge: {e}")
-            return "", "error", "No Features"
+            return "", "error", "No Features", 0.0
 
 
     def launch_chatbot(self):

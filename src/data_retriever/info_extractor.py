@@ -179,8 +179,8 @@ class QueryInfoExtractor:
 
             cleaned_string = filters_str.strip("```").replace("json", "").strip()
 
-            print(f"Query: {query}")
-            print(f"Response: {cleaned_string}")
+            # print(f"Query: {query}")
+            # print(f"Response: {cleaned_string}")
 
             valid_json = json.loads(cleaned_string)
             filters = self._convert_to_weaviate_filter(valid_json)
