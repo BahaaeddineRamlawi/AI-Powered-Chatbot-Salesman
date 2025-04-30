@@ -28,7 +28,7 @@ SEMANTIC_RULES = {
 
 KEYWORD_RULES = {
     "asc": ["cheapest", "low price", "affordable", "cheap", "lowest", "least expensive"],
-    "desc": ["most expensive", "luxury", "premium", "highest price", "priciest"]
+    "desc": ["most expensive", "luxury", "premium", "highest price", "priciest", "more expensive"]
 }
 
 

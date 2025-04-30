@@ -54,7 +54,7 @@ Focus on **health-related or dietary needs** that imply a food preference or res
     **Even single-word criticisms count as feedback** (e.g., *"Useless"*, *"Bad"*, *"Terrible"*, *"Nice"*, *"Great"*, *"Awesome"*, *"WOW"*).
  - "gibberish" - Random or unintelligible text (e.g., "dfjksd")
  - "thanking" - Gratitude or thanks (e.g., "Thanks a lot")
- - "ask_for_unrelated_product" - Asking for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics?", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets)
+ - "ask_for_unrelated_product" - Asking for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics? What can you give me.", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets")
  - "ask_for_product" - Requests about a specific product, feature, or category (e.g., "I want almonds", "Do you have chocolate?")
  - "ask_for_offers" - Asks explicitly or implicitly about deals, discounts, or current promotions, even if phrased as a recommendation (e.g., "What offers do you recommend?", "Show me your best deals")
  - "ask_for_recommendation" - Looks for product suggestions or needs help choosing. This includes open-ended questions like "What do you recommend?"
