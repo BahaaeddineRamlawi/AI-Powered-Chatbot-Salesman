@@ -21,7 +21,7 @@ def test_chatbot_responses():
 
     # Open output CSV
     with open(OUTPUT_CSV, mode='w', newline='', encoding='utf-8') as outfile:
-        fieldnames = ['query', 'response', 'response_intent', 'retrieval_time', 'response_time']
+        fieldnames = ['query', 'response', 'retrieval_time', 'response_time']
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 

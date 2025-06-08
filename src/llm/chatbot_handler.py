@@ -58,10 +58,10 @@ class ChatbotHandler:
             if self.product_query_counter <= 6 and intent in {"ask_for_product", "ask_without_product"}:
                 self.product_query_counter += 1
                 if self.product_query_counter == 3:
-                    self.question_to_ask = """\nAsk the user if they're interested in current deals - '**Would you like to check out our current offers?**'"""
+                    self.question_to_ask = """\nAsk the user at the end if they're interested in current deals - '**Would you like to check out our current offers?**'"""
                     
                 elif self.product_query_counter == 4:
-                    self.question_to_ask = """\nAsk the user if they'd like a recommendation based on their past ratings - '**Would you like to see personalized recommendations based on what you've liked before?**'"""
+                    self.question_to_ask = """\nAsk the user at the end if they'd like a recommendation based on their past ratings - '**Would you like to see personalized recommendations based on what you've liked before?**'"""
                 
                 elif self.product_query_counter == 5:
                     self.question_to_ask = """\nAsk the user this question at the end — '**Would you prefer a more premium option?**' or a similar question."""
@@ -154,7 +154,7 @@ class ChatbotHandler:
                 for past_query in user_queries[:self.max_history_check]:
                     combined_queries.append(past_query)
                     combined_query = ", ".join(reversed(combined_queries))
-                    _, past_intent, features, _, _, _ = self.filter_extractor.extract_info_from_query(past_query, history)
+                    _, past_intent, features, _, _ = self.filter_extractor.extract_info_from_query(past_query, history)
                     logging.info(f"After appending, combined query: {combined_query}")
                     if past_intent == "ask_for_product":
                         break

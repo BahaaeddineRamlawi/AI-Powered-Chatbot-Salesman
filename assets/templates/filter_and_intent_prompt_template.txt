@@ -40,7 +40,7 @@ Focus on **health-related or dietary needs** that imply a food preference or res
 ---
 
 ### Reply Interpretation
-**If the current input appears to be a reply (e.g., "yes please", "sure"), reference the last ask question by the **Assistant** in the history to accurately interpret the intent.**
+**If the current input appears to be a reply (e.g., "yes please", "sure"), reference the last ask question by the **Assistant** in the history to accurately interpret the intent.** It is not always follow-up, it depend on the last question in the history
 
 ---
 
@@ -56,10 +56,10 @@ Focus on **health-related or dietary needs** that imply a food preference or res
  - "thanking" - Gratitude or thanks (e.g., "Thanks a lot")
  - "ask_for_unrelated_product" - Asking for a product that is not part of the store's defined categories or offerings (e.g., "Do you sell electronics? What can you give me.", "Do you have furniture?", "I’m looking for a bicycle", "Do you have nuggets")
  - "ask_for_product" - Requests about a specific product, feature, or category (e.g., "I want almonds", "Do you have chocolate?")
- - "ask_for_offers" - Asks explicitly or implicitly about deals, discounts, or current promotions, even if phrased as a recommendation (e.g., "What offers do you recommend?", "Show me your best deals")
+ - "ask_for_offers" - Asks explicitly or implicitly about deals, discounts, or current promotions, even if phrased as a recommendation (e.g., "What offers do you recommend?", "Show me your best deals" or anwsering previous questions)
  - "ask_for_recommendation" - Looks for product suggestions or needs help choosing. This includes open-ended questions like "What do you recommend?"
- - "follow_up" - A follow-up that clearly refers to a previous message or product already discussed, often using words like "this", "that", "it", "more about it", "the second one", etc. (Does not include answeing previous questions)
- - "other" - 	Anything that doesn’t fit the above
+ - "follow_up" - A follow-up that clearly refers to a previous message or product already discussed without mentioning any information in the current query, often using words like "this", "that", "it", "more about it", "the second one", etc. (Does not include answering previous questions like "Yes please", "No thank you")
+ - "other" - 	Anything that doesn’t fit the above and General questions not related to sales
  
 ---
 
@@ -134,12 +134,6 @@ Extract only filters that are **clearly stated** or **strongly implied** in the 
     {{ "path": "categories", "valueString": "Gifts" }},
   ]
 
- - User: 'Do you have Peanuts offers'
- - Assistant: [
-    {{ "path": "intent", "valueString": "ask_for_offers" }},
-    {{ "path": "categories", "valueString": "Nuts & Kernels" }}
-  ]
-
  - User: 'Give me chocolate product with a rating higher than 4'
  - Assistant: [
     {{ "path": "intent", "valueString": "ask_for_product" }},
@@ -170,5 +164,11 @@ Extract only filters that are **clearly stated** or **strongly implied** in the 
  - User: 'yes please'
  - Assistant: [
     {{ "path": "intent", "valueString": "follow_up" }},
+    {{ "path": "cross_sell", "valueBoolean": true }}
+  ]
+
+ - User: 'I want you to give me an item I can pair with peanuts'
+ - Assistant: [
+    {{ "path": "intent", "valueString": "ask_for_product" }},
     {{ "path": "cross_sell", "valueBoolean": true }}
   ]

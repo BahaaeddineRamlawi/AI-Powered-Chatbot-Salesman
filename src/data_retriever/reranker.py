@@ -58,7 +58,6 @@ class RerankedResponse:
     def get_price_sort_intent(self, query_text, alpha=0.45):
         """
         Detect user intent using hybrid scoring: keyword + semantic.
-        Alpha=0.5 means equal contribution.
         """
         try:
             query_text = normalize_text(query_text)
