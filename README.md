@@ -70,37 +70,62 @@ docker-compose up
 
 ## Usage
 
-1. Embedding Generation & Data Insertion:
-
-- Run vector_database_creation.py to generate embeddings for the products and insert them into Weaviate. The script will clean the data, generate embeddings using SentenceTransformer, and insert the data into the Weaviate vector database.
-
-```bash
-python vector_database_creation.py
-```
-
-2. Hybrid Search (via Gradio Interface):
-
-- Once the data is in Weaviate, use query_interface.py to launch the Gradio interface for searching products using both semantic and metadata search. The interface runs locally and can be accessed via the URL: `http://127.0.0.1:7860`.
+### 1. Data Cleaning
+Run the following command to preprocess and clean the product data before further processing:
 
 ```bash
-python query_interface.py
+python -m src.flow_runner.clean_data
 ```
 
-3. Fetching All Products from Weaviate:
-
-- To fetch and view all product data stored in Weaviate, use get_all_items.py. This will display the product ID, title, and price for all products in the "Product" collection.
+### 2. Embedding Generation & Data Insertion
+Generate embeddings for the products and insert them into Weaviate:
 
 ```bash
-python get_all_items.py
+python -m src.flow_runner.vector_database_creation
 ```
+
+### 3. Offers Database Creation
+Create a structured database for product offers:
+
+```bash
+python -m src.flow_runner.offers_database_creation
+```
+
+### 4. History Database Creation
+Maintain users ratings for product for recommendations:
+
+```bash
+python -m src.flow_runner.history_database_creation
+```
+
+### 5. Gradio Chatbot Interface
+Launch the AI-powered chatbot interface:
+
+```bash
+python -m src.flow_runner.chatbot_interface
+```
+
+Once running, the chatbot interface will be accessible at:
+
+**http://127.0.0.1:7860**
+
+---
 
 ## Code Breakdown
 
-- `vector_database_creation.py`: Handles data preparation, embedding generation using SentenceTransformer, and inserting product data (along with embeddings) into Weaviate.
+### Data Processing & Storage
 
-- `query_interface.py`: Implements the Gradio interface for users to input search queries, performs a hybrid search using both text-based queries and semantic vector search, and returns results with product details. The interface runs locally and can be accessed via the URL: `http://127.0.0.1:7860`.
+- `clean_data.py`: Cleans and preprocesses product data before embedding generation.
 
-- `get_all_items.py`: Fetches all product data from Weaviate and logs or prints the product information.
+- `vector_database_creation.py`: Handles data preparation, embedding generation using SentenceTransformer, and inserting product data into Weaviate.
+
+- `offers_database_creation.py`: Creates an SQLite database to store product offers.
+
+- `history_database_creation.py`: Creates an SQLite database to store user interaction history, including product ratings for personalized recommendations.
+
+### Query & Retrieval
+
+- `chatbot_interface.py`: Implements the Gradio chatbot interface for users to search for products, ask questions, and receive recommendations. Runs locally at `http://127.0.0.1:7860`.
 
 ## Logging
 
