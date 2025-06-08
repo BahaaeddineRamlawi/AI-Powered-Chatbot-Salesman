@@ -47,7 +47,7 @@ class OffersDatabase:
         except sqlite3.Error as e:
             logging.error(f"Error creating table: {e}")
 
-    def insert_data(self, csv_file=config['data_file']['offers_data_path']):
+    def insert_data(self, csv_file=config['input_file']['offers_data_path']):
         """Insert data from a CSV file into the database."""
         try:
             df = pd.read_csv(csv_file)
@@ -75,34 +75,6 @@ class OffersDatabase:
         except Exception as e:
             logging.error(f"Error fetching offers for product {product_id}: {e}")
             return []
-    
-    def get_offers(self, limit=20):
-        """Retrieve a limited number of offers from the database and return them as strings."""
-        self.connect()
-        try:
-            cursor = self.conn.cursor()
-            query = f"""
-                SELECT id, title, price, link, categories, description, rating, weight, image, stock_status 
-                FROM offers
-                ORDER BY id DESC
-                LIMIT ?
-            """
-            cursor.execute(query, (limit,))
-            results = cursor.fetchall()
-
-            offer_strings = "\n\n".join(
-            f"Offer {index + 1}: Title: {row[1]}, Price: {row[2]}, Link: {row[3]}, Categories: {row[4]}, "
-            f"Description: {row[5]}, Rating: {row[6]}, Weight: {row[7]}, Image: {row[8]}, Stock Status: {row[9]}"
-            for index, row in enumerate(results)
-            )
-
-            self.close()            
-            return offer_strings
-        except sqlite3.Error as e:
-            logging.error(f"Error fetching offers: {e}")
-            self.close() 
-            return []
-
 
     def close(self):
         """Close the database connection."""
